@@ -1,0 +1,48 @@
+{# image_transforms.j2 #}
+{% macro image_resize(size, interpolation="InterpolationMode.BILINEAR") -%}
+T.Resize(size={{ size }}, interpolation={{ interpolation }})
+{%- endmacro %}
+
+{% macro image_random_crop(size, padding=None, pad_if_needed=False) -%}
+T.RandomCrop(size={{ size }}{% if padding is not none %}, padding={{ padding }}{% endif %}, pad_if_needed={{ pad_if_needed|lower }})
+{%- endmacro %}
+
+{% macro image_random_horizontal_flip(p=0.5) -%}
+T.RandomHorizontalFlip(p={{ p }})
+{%- endmacro %}
+
+{% macro image_random_rotation(degrees, interpolation="InterpolationMode.BICUBIC") -%}
+T.RandomRotation(degrees={{ degrees }}, interpolation={{ interpolation }})
+{%- endmacro %}
+
+{% macro image_color_jitter(brightness=0, contrast=0, saturation=0, hue=0) -%}
+T.ColorJitter(brightness={{ brightness }}, contrast={{ contrast }}, saturation={{ saturation }}, hue={{ hue }})
+{%- endmacro %}
+
+{% macro image_grayscale(num_output_channels=1) -%}
+T.Grayscale(num_output_channels={{ num_output_channels }})
+{%- endmacro %}
+
+{% macro image_random_adjust_sharpness(sharpness_factor, p=0.5) -%}
+T.RandomAdjustSharpness(sharpness_factor={{ sharpness_factor }}, p={{ p }})
+{%- endmacro %}
+
+{% macro image_to_tensor() -%}
+T.ToTensor()
+{%- endmacro %}
+
+{% macro image_normalize(mean, std) -%}
+T.Normalize(mean={{ mean }}, std={{ std }})
+{%- endmacro %}
+
+{% macro image_convert_dtype(dtype="torch.float32") -%}
+T.ConvertImageDtype(dtype={{ dtype }})
+{%- endmacro %}
+
+{% macro image_random_erasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0) -%}
+T.RandomErasing(p={{ p }}, scale={{ scale }}, ratio={{ ratio }}, value={{ value }})
+{%- endmacro %}
+
+{% macro image_gaussian_blur(kernel_size, sigma) -%}
+T.GaussianBlur(kernel_size={{ kernel_size }}, sigma={{ sigma }})
+{%- endmacro %}
