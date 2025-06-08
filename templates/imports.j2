@@ -1,0 +1,49 @@
+{% if use_torch %}
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import DataLoader, Dataset
+{% endif %}
+
+{% if use_vision %}
+import torchvision
+import torchvision.transforms as transforms
+{% endif %}
+
+{% if use_text %}
+import torchtext
+import torchtext.transforms as text_transforms
+{% endif %}
+
+{% if use_audio %}
+import torchaudio
+import torchaudio.transforms as audio_transforms
+{% endif %}
+
+{% if use_metrics %}
+import torchmetrics
+{% endif %}
+
+{% if use_scheduler %}
+import torch.optim.lr_scheduler as lr_scheduler
+{% endif %}
+
+{% if use_wandb %}
+import wandb
+{% endif %}
+
+{% if use_tensorboard %}
+from torch.utils.tensorboard import SummaryWriter
+{% endif %}
+
+{% if use_logging %}
+import logging
+{% endif %}
+
+{% if use_numpy %}
+import numpy as np
+{% endif %}
+
+{% if use_random %}
+import random
+{% endif %}

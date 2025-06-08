@@ -1,0 +1,40 @@
+# PLACEHOLDER
+
+class CustomImageDataset(torch.utils.data.Dataset):
+    def __init__(self, data_dir, transform=None):
+        self.data_dir = data_dir
+        self.transform = transform
+        self.image_paths = []
+        self.labels = []
+
+        
+        for class_dir in os.listdir(data_dir):
+            class_path = os.path.join(data_dir, class_dir)
+            if os.path.isdir(class_path):
+                for img_file in os.listdir(class_path):
+                    self.image_paths.append(os.path.join(class_path, img_file))
+                    self.labels.append(class_dir)
+
+        self.class_to_idx = {cls: idx for idx, cls in enumerate(sorted(set(self.labels)))}
+        self.labels = [self.class_to_idx[label] for label in self.labels]
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        image_path = self.image_paths[idx]
+        label = self.labels[idx]
+        image = PIL.Image.open(image_path).convert('RGB')
+        if self.transform:
+            image = self.transform(image)
+        return image, label
+
+
+def get_image_classification_loaders(data_dir, batch_size, transform_train=None, transform_val=None):
+    train_dataset = CustomImageDataset(os.path.join(data_dir, 'train'), transform=transform_train)
+    val_dataset = CustomImageDataset(os.path.join(data_dir, 'val'), transform=transform_val)
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+    return train_loader, val_loader
