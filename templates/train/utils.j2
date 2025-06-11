@@ -1,0 +1,16 @@
+{%- raw -%}
+import torch.nn as nn
+import torch.optim as optim
+
+def get_criterion(config):
+    loss_cfg = config.loss
+    name = loss_cfg.name
+    params = loss_cfg.get('params', {})
+    return getattr(nn, name)(**params)
+
+def get_optimizer(model, config):
+    opt = config.optimizer
+    Optim = getattr(optim, opt.name)
+    params = opt.get('params', {})
+    return Optim(model.parameters(), lr=config.training.learningRate, **params)
+{%- endraw -%}

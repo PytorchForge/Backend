@@ -1,50 +1,87 @@
-import os
-from jinja2 import Environment, FileSystemLoader
+import json
+import argparse
+from pathlib import Path
+import jinja2
+import isort
+import black
 
-# placeholder for now
-TEMPLATE_DIR = "templates"
-OUTPUT_DIR = "output"
+def setup_environment():
+    base = Path(__file__).parent.parent
+    return jinja2.Environment(
+        loader=jinja2.FileSystemLoader(str(base / "templates")),
+        keep_trailing_newline=True,
+        autoescape=False
+    )
 
-env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), trim_blocks=True, lstrip_blocks=True)
+env = setup_environment()
 
-def generate_code(config: dict, output_path: str = os.path.join(OUTPUT_DIR, "generated_model.py")):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    context = {}
+TASK_MAP = {
+    "imports": "imports.j2",
+    "models": "models/{task}.j2",
+    "transforms": "data/transforms/{task}.j2",
+    "loaders": "data/loaders/{task}/{subtask}.j2",
+    "custom_model": "models/layers.j2",
+}
 
-    context["preprocessing"] = config.get("preprocessing", [])
-    context["training"] = config.get("training", {})
-    context["optimizer"] = config.get("optimizer", {})
-    context["loss"] = config.get("loss", {})
-    context["metrics"] = config.get("metrics", {})
-    context["monitoring"] = config.get("monitoring", {})
-    context["fileMetadata"] = config.get("fileMetadata", {})
+DEFAULT_OUTPUT = Path(__file__).parent.parent / "outputs" / "out.py"
 
-    model_type = config.get("modelType")
-    if model_type == "custom":
-        context["layers"] = config.get("customLayers", [])
-        context["pretrained"] = None
-    elif model_type == "pretrained":
-        context["pretrained"] = config.get("pretrainedModel", {})
-        context["layers"] = []
+def read_config(path):
+    return json.loads(Path(path).read_text())
 
-    # Select templates by domain
-    if context["fileMetadata"].get("type", "").startswith("image"):
-        preprocessing_template = env.get_template("transforms/vision_transforms.j2")
-        model_template = env.get_template("models/vision_models.j2")
-    else:
-        preprocessing_template = env.get_template("transforms/text_models.j2")
-        model_template = env.get_template("models/text_models.j2")
+def resolve_name(section, cfg):
+    if section == "models" and cfg.get("modelType") == "custom":
+        return TASK_MAP["custom_model"]
+    return TASK_MAP[section].format(
+        task=cfg["mainTask"].lower(),
+        subtask=cfg["subTask"].lower()
+    )
 
-    training_template = env.get_template("training_config.j2")
-    inference_template = env.get_template("inference.j2")
+def render_template(name, context):
+    tpl = env.get_template(name)
+    return tpl.render(config=context)
 
-    rendered = []
-    rendered.append(preprocessing_template.render(**context))
-    rendered.append(model_template.render(**context))
-    rendered.append(training_template.render(**context))
-    rendered.append(inference_template.render(**context))
+def assemble(cfg):
+    parts = []
+    imp_tpl = resolve_name("imports", cfg)
+    parts.append(render_template(imp_tpl, cfg) + "\n\n")
+    for sec in ["models", "transforms", "loaders"]:
+        tpl_name = resolve_name(sec, cfg)
+        parts.append(render_template(tpl_name, cfg) + "\n\n")
+    static = ["setup.j2", "train/utils.j2", "train/train_loop.j2", "train/eval_loop.j2"]
+    for tpl in static:
+        if tpl in env.loader.list_templates():
+            parts.append(env.get_template(tpl).render(config=cfg) + "\n\n")
+    return "".join(parts)
 
-    code = "\n\n".join(rendered)
+def write_output(code: str, output_path: Path):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    sorted_code = isort.code(code)
+    formatted_code = black.format_str(sorted_code, mode=black.FileMode())
+    output_path.write_text(formatted_code)
 
-    with open(output_path, "w") as f:
-        f.write(code)
+
+def get_output_path(user_path: str = None) -> Path:
+    if user_path:
+        return Path(user_path)
+    path = DEFAULT_OUTPUT
+    if path.exists():
+        idx = 1
+        while True:
+            candidate = path.with_name(f"{path.stem}_{idx}{path.suffix}")
+            if not candidate.exists():
+                return candidate
+            idx += 1
+    return path
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate code from templates.")
+    parser.add_argument("config", help="Path to config JSON")
+    parser.add_argument("--output", help="Optional output path for generated code")
+    args = parser.parse_args()
+    cfg = read_config(args.config)
+    code = assemble(cfg)
+    out_path = get_output_path(args.output)
+    write_output(code, out_path)
+
+if __name__ == "__main__":
+    main()

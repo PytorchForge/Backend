@@ -1,0 +1,53 @@
+
+{
+  "mode": "train",
+  "mainTask": "image",
+  "subTask": "classification",
+  "mainDataType": "image",
+  "subDataType": "rgb",
+  "preprocessing": ["resize", "to_tensor"],
+  "fileMetadata": {
+    "data_dir": "data/images",
+    "annotation_file": "labels.csv"
+  },
+  "modelType": "custom",
+  "customLayers": [
+    {
+      "type": "Conv2d",
+      "category": "nn",
+      "config": { "in_channels": 3, "out_channels": 16, "kernel_size": 3, "stride": 1, "padding": 1 }
+    },
+    {
+      "type": "ReLU",
+      "category": "nn",
+      "config": {}
+    },
+    {
+      "type": "MaxPool2d",
+      "category": "nn",
+      "config": { "kernel_size": 2 }
+    }
+  ],
+  "optimizer": {
+    "category": "optim",
+    "name": "SGD",
+    "params": { "momentum": 0.9 }
+  },
+  "loss": {
+    "category": "nn",
+    "name": "CrossEntropyLoss",
+    "params": {}
+  },
+  "metrics": {
+    "category": "metrics",
+    "name": "accuracy"
+  },
+  "training": {
+    "batchSize": 16,
+    "epochs": 5,
+    "learningRate": 0.01,
+    "weightDecay": 0.0,
+    "earlyStoppingEnabled": true,
+    "earlyStoppingPatience": 3
+  }
+}

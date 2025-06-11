@@ -1,0 +1,36 @@
+{
+  "mode": "train",
+  "mainTask": "image",
+  "subTask": "classification",
+  "mainDataType": "image",
+  "subDataType": "rgb",
+  "preprocessing": ["resize", "to_tensor", "normalize"],
+  "fileMetadata": {
+    "data_dir": "data/images",
+    "annotation_file": "labels.csv"
+  },
+  "modelType": "pretrained",
+  "pretrainedModelCategory": "resnet",
+  "pretrainedModel": "resnet18",
+  "optimizer": {
+    "category": "optim",
+    "name": "Adam",
+    "params": { "weight_decay": 0.0001 }
+  },
+  "loss": {
+    "category": "nn",
+    "name": "CrossEntropyLoss",
+    "params": {}
+  },
+  "metrics": {
+    "category": "metrics",
+    "name": "accuracy"
+  },
+  "training": {
+    "batchSize": 32,
+    "epochs": 10,
+    "learningRate": 0.001,
+    "weightDecay": 0.0,
+    "earlyStoppingEnabled": false
+  }
+}

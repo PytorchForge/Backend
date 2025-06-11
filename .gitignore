@@ -163,3 +163,4 @@ cython_debug/
 
 *.test
 sketches/*
+/.ruff_cache
