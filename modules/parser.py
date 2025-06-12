@@ -1,5 +1,6 @@
 import json
 import argparse
+import os
 from pathlib import Path
 import jinja2
 import isort
@@ -82,6 +83,10 @@ def main():
     code = assemble(cfg)
     out_path = get_output_path(args.output)
     write_output(code, out_path)
+
+    results = {"generated_path": os.path.abspath(out_path)}
+    print(json.dumps(results)) 
+    return results
 
 if __name__ == "__main__":
     main()
