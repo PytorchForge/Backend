@@ -10,7 +10,7 @@ import json
 app = FastAPI()
 
 class InputPayload(BaseModel):
-    data: dict
+    data: dict # config
     base_path: str
     command: str = "generate"  # "generate" or "run generated file"
 
