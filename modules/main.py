@@ -2,12 +2,11 @@ import uvicorn
 def main():
     uvicorn.run(
         "server:app",
-        host="http://localhost",
+        host="127.0.0.1",
         port=8000,
         reload=True,
         log_level="info",
         workers=1,
-        factory=True,
         lifespan="on",
         loop="auto"
     )
