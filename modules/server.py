@@ -1,23 +1,103 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from subprocess import run as subprocess_run, PIPE
 from pathlib import Path
 import tempfile
 import json
 import os
 import sys
+from typing import List, Literal, Optional, Dict, Any
+
 
 app = FastAPI()
 
 DEFAULT_BASE_PATH = Path(__file__).parent # current directory of this script
 
-class GeneratePayload(BaseModel):
-    data: dict
-    base_path: str = DEFAULT_BASE_PATH
 
-class RunPayload(BaseModel):
-    base_path: str | None = None  # Optional, defaults to current directory
+
+
+class PreprocessingStep(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class LayerDefinition(BaseModel):
+    type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PretrainedModel(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ModelConfig(BaseModel):
+    use_pretrained: bool
+    pretrained: Optional[PretrainedModel] = None
+    layers: Optional[List[LayerDefinition]] = None
+
+
+class OptimizerConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class LossConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class MetricConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class SchedulerConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class EarlyStoppingConfig(BaseModel):
+    enabled: bool
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+
+class TrainingConfig(BaseModel):
+    batch_size: int
+    learning_rate: float
+    epochs: int
+    weight_decay: Optional[float] = 0.0
+    early_stopping: Optional[EarlyStoppingConfig] = None
+    scheduler: Optional[SchedulerConfig] = None
+
+
+class MonitoringConfig(BaseModel):
+    monitor: List[str] = Field(default_factory=list)  # e.g., ['val_loss', 'accuracy']
+
+
+class DataConfig(BaseModel):
+    task_type: Literal["ml", "dl"]
+    main_task: str
+    sub_task: str
+    data_format: Literal["imagefolder", "csv", "json", "other"]
+    data_type: Literal["file", "folder"]
+    preprocessing: List[PreprocessingStep]
+
+
+class GenerateDataModel(BaseModel):
+    data: DataConfig
+    model: ModelConfig
+    training: TrainingConfig
+    monitoring: MonitoringConfig
+    optimizers: List[OptimizerConfig]
+    losses: List[LossConfig]
+    metrics: List[MetricConfig]
+
+
+class GeneratePayload(BaseModel):
+    data: GenerateDataModel
+    base_path: str = str(DEFAULT_BASE_PATH)
 
 
 @app.post("/generate")
@@ -52,6 +132,10 @@ async def generate(payload: GeneratePayload):
 
     return FileResponse(generated_path, filename=Path(generated_path).name)
 
+
+
+class RunPayload(BaseModel):
+    base_path: str | None = None  # Optional, defaults to current directory
 
 @app.post("/run")
 async def run(payload: RunPayload):

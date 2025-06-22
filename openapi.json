@@ -80,12 +80,131 @@
     },
     "components": {
         "schemas": {
+            "DataConfig": {
+                "properties": {
+                    "task_type": {
+                        "type": "string",
+                        "enum": [
+                            "ml",
+                            "dl"
+                        ],
+                        "title": "Task Type"
+                    },
+                    "main_task": {
+                        "type": "string",
+                        "title": "Main Task"
+                    },
+                    "sub_task": {
+                        "type": "string",
+                        "title": "Sub Task"
+                    },
+                    "data_format": {
+                        "type": "string",
+                        "enum": [
+                            "imagefolder",
+                            "csv",
+                            "json",
+                            "other"
+                        ],
+                        "title": "Data Format"
+                    },
+                    "data_type": {
+                        "type": "string",
+                        "enum": [
+                            "file",
+                            "folder"
+                        ],
+                        "title": "Data Type"
+                    },
+                    "preprocessing": {
+                        "items": {
+                            "$ref": "#/components/schemas/PreprocessingStep"
+                        },
+                        "type": "array",
+                        "title": "Preprocessing"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "task_type",
+                    "main_task",
+                    "sub_task",
+                    "data_format",
+                    "data_type",
+                    "preprocessing"
+                ],
+                "title": "DataConfig"
+            },
+            "EarlyStoppingConfig": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "enabled"
+                ],
+                "title": "EarlyStoppingConfig"
+            },
+            "GenerateDataModel": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/DataConfig"
+                    },
+                    "model": {
+                        "$ref": "#/components/schemas/ModelConfig"
+                    },
+                    "training": {
+                        "$ref": "#/components/schemas/TrainingConfig"
+                    },
+                    "monitoring": {
+                        "$ref": "#/components/schemas/MonitoringConfig"
+                    },
+                    "optimizers": {
+                        "items": {
+                            "$ref": "#/components/schemas/OptimizerConfig"
+                        },
+                        "type": "array",
+                        "title": "Optimizers"
+                    },
+                    "losses": {
+                        "items": {
+                            "$ref": "#/components/schemas/LossConfig"
+                        },
+                        "type": "array",
+                        "title": "Losses"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricConfig"
+                        },
+                        "type": "array",
+                        "title": "Metrics"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "data",
+                    "model",
+                    "training",
+                    "monitoring",
+                    "optimizers",
+                    "losses",
+                    "metrics"
+                ],
+                "title": "GenerateDataModel"
+            },
             "GeneratePayload": {
                 "properties": {
                     "data": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Data"
+                        "$ref": "#/components/schemas/GenerateDataModel"
                     },
                     "base_path": {
                         "type": "string",
@@ -112,6 +231,164 @@
                 "type": "object",
                 "title": "HTTPValidationError"
             },
+            "LayerDefinition": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "title": "Type"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "type"
+                ],
+                "title": "LayerDefinition"
+            },
+            "LossConfig": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "LossConfig"
+            },
+            "MetricConfig": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "MetricConfig"
+            },
+            "ModelConfig": {
+                "properties": {
+                    "use_pretrained": {
+                        "type": "boolean",
+                        "title": "Use Pretrained"
+                    },
+                    "pretrained": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/PretrainedModel"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "layers": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/LayerDefinition"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Layers"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "use_pretrained"
+                ],
+                "title": "ModelConfig"
+            },
+            "MonitoringConfig": {
+                "properties": {
+                    "monitor": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Monitor"
+                    }
+                },
+                "type": "object",
+                "title": "MonitoringConfig"
+            },
+            "OptimizerConfig": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "OptimizerConfig"
+            },
+            "PreprocessingStep": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "PreprocessingStep"
+            },
+            "PretrainedModel": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "PretrainedModel"
+            },
             "RunPayload": {
                 "properties": {
                     "base_path": {
@@ -128,6 +405,79 @@
                 },
                 "type": "object",
                 "title": "RunPayload"
+            },
+            "SchedulerConfig": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "SchedulerConfig"
+            },
+            "TrainingConfig": {
+                "properties": {
+                    "batch_size": {
+                        "type": "integer",
+                        "title": "Batch Size"
+                    },
+                    "learning_rate": {
+                        "type": "number",
+                        "title": "Learning Rate"
+                    },
+                    "epochs": {
+                        "type": "integer",
+                        "title": "Epochs"
+                    },
+                    "weight_decay": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Weight Decay",
+                        "default": 0.0
+                    },
+                    "early_stopping": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/EarlyStoppingConfig"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "scheduler": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/SchedulerConfig"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "batch_size",
+                    "learning_rate",
+                    "epochs"
+                ],
+                "title": "TrainingConfig"
             },
             "ValidationError": {
                 "properties": {
