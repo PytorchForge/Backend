@@ -1,0 +1,27 @@
+# Machine Translation Dataset
+import pandas as pd
+from torch.utils.data import Dataset
+
+class {{ class_name }}(Dataset):
+    def __init__(self, csv_path, src_lang='en', tgt_lang='fr', tokenizer=None, max_length=128):
+        self.data = pd.read_csv(csv_path)
+        self.src_lang = src_lang
+        self.tgt_lang = tgt_lang
+        self.tokenizer = tokenizer
+        self.max_length = max_length
+
+    def __getitem__(self, index):
+        src_text = self.data.loc[index, self.src_lang]
+        tgt_text = self.data.loc[index, self.tgt_lang]
+        if self.tokenizer:
+            src_enc = self.tokenizer(src_text, truncation=True, padding='max_length', max_length=self.max_length, return_tensors='pt')
+            tgt_enc = self.tokenizer(tgt_text, truncation=True, padding='max_length', max_length=self.max_length, return_tensors='pt')
+            return {
+                'input_ids': src_enc['input_ids'].squeeze(),
+                'attention_mask': src_enc['attention_mask'].squeeze(),
+                'labels': tgt_enc['input_ids'].squeeze()
+            }
+        return src_text, tgt_text
+
+    def __len__(self):
+        return len(self.data)
