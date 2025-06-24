@@ -34,20 +34,6 @@ TASK_MAP = {
 }
 
 DEFAULT_OUTPUT = Path(__file__).parent.parent / "outputs" / "out.py"
-
-def normalize_config(cfg):
-    opt = cfg.get("optimizer")
-    if opt and "name" in opt:
-        opt["name"] = normalize_name(opt["name"], OPTIMIZER_ALIASES)
-
-    loss = cfg.get("loss")
-    if loss and "name" in loss:
-        loss["name"] = normalize_name(loss["name"], LOSS_ALIASES)
-
-    metric = cfg.get("metric")
-    if metric and "name" in metric:
-        metric["name"] = normalize_name(metric["name"], METRIC_ALIASES)
-
         
 def resolve_template_from_alias(section: str, cfg: dict) -> str:
     if section == "optimizer":
