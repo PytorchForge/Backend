@@ -7,9 +7,9 @@ import isort
 import black
 
 try:
-    from aliases import OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC _ALIASES
+    from aliases import OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC_ALIASES
 except ImportError:
-	OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC _ALIASES = {},{},{}
+	OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC_ALIASES = {},{},{}
 	
 	
 def setup_environment():
@@ -29,7 +29,7 @@ TASK_MAP = {
     "loaders": "data/loaders/{task}/{subtask}.j2",
     "custom_model": "models/layers.j2",
     "optimizer": "train/optimizers.j2",
-    "loss": "train/losses.j2"
+    "loss": "train/losses.j2",
     "metrics": "train/metrics.j2"
 }
 
@@ -95,7 +95,7 @@ def render_template(name, context):
     return tpl.render(config=context)
 
 def assemble(cfg):
-	normalize_config(cfg)
+    normalize_config(cfg)
     parts = []
     imp_tpl = resolve_name("imports", cfg)
     parts.append(render_template(imp_tpl, cfg) + "\n\n")
@@ -109,7 +109,6 @@ def assemble(cfg):
     for shared in ["train/optimizers.j2", "train/losses.j2", "train/metrics.j2", "train/monitoring.j2"]:
         if shared in env.loader.list_templates():
             parts.append(env.get_template(shared).render(config=cfg) + "\n\n")
-        
     return "".join(parts)
 
 def write_output(code: str, output_path: Path):
