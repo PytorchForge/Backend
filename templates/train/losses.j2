@@ -1,0 +1,17 @@
+# Loss function definition
+{% set name = config.loss.name %}
+{% set args = config.loss.params %}
+
+{% if name == "CrossEntropyLoss" %}
+criterion = torch.nn.CrossEntropyLoss({{ args | join(", ") }})
+{% elif name == "BCELoss" %}
+criterion = torch.nn.BCELoss({{ args | join(", ") }})
+{% elif name == "BCEWithLogitsLoss" %}
+criterion = torch.nn.BCEWithLogitsLoss({{ args | join(", ") }})
+{% elif name == "MSELoss" %}
+criterion = torch.nn.MSELoss({{ args | join(", ") }})
+{% elif name == "L1Loss" %}
+criterion = torch.nn.L1Loss({{ args | join(", ") }})
+{% else %}
+raise NotImplementedError("Unsupported loss: " ~ name)
+{% endif %}

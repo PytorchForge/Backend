@@ -6,6 +6,12 @@ import jinja2
 import isort
 import black
 
+try:
+    from aliases import OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC _ALIASES
+except ImportError:
+	OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC _ALIASES = {},{},{}
+	
+	
 def setup_environment():
     base = Path(__file__).parent.parent
     return jinja2.Environment(
@@ -22,10 +28,54 @@ TASK_MAP = {
     "transforms": "data/transforms/{task}.j2",
     "loaders": "data/loaders/{task}/{subtask}.j2",
     "custom_model": "models/layers.j2",
+    "optimizer": "train/optimizers.j2",
+    "loss": "train/losses.j2"
+    "metrics": "train/metrics.j2"
 }
 
 DEFAULT_OUTPUT = Path(__file__).parent.parent / "outputs" / "out.py"
 
+def normalize_config(cfg):
+    opt = cfg.get("optimizer")
+    if opt and "name" in opt:
+        opt["name"] = normalize_name(opt["name"], OPTIMIZER_ALIASES)
+
+    loss = cfg.get("loss")
+    if loss and "name" in loss:
+        loss["name"] = normalize_name(loss["name"], LOSS_ALIASES)
+
+    metric = cfg.get("metric")
+    if metric and "name" in metric:
+        metric["name"] = normalize_name(metric["name"], METRIC_ALIASES)
+
+        
+def resolve_template_from_alias(section: str, cfg: dict) -> str:
+    if section == "optimizer":
+        return normalize_name(cfg["optimizer"]["name"], OPTIMIZER_ALIASES)
+    elif section == "loss":
+        return normalize_name(cfg["loss"]["name"], LOSS_ALIASES)
+    elif section == "metric":
+        return normalize_name(cfg["metric"]["name"], METRIC_ALIASES)
+    else:
+        raise ValueError(f"Unsupported alias-resolved section: {section}")
+        
+def normalize_name(name: str, alias_map: dict) -> str:
+    key = name.strip().lower()
+    return alias_map.get(key, name)
+    
+def normalize_config(cfg):
+    opt = cfg.get("optimizer")
+    if opt and "name" in opt:
+        opt["name"] = normalize_name(opt["name"], OPTIMIZER_ALIASES)
+
+    loss = cfg.get("loss")
+    if loss and "name" in loss:
+        loss["name"] = normalize_name(loss["name"], LOSS_ALIASES)
+
+    metric = cfg.get("metric")
+    if metric and "name" in metric:
+        metric["name"] = normalize_name(metric["name"], METRIC_ALIASES)
+        
 def read_config(path):
     return json.loads(Path(path).read_text())
 
@@ -38,10 +88,14 @@ def resolve_name(section, cfg):
     )
 
 def render_template(name, context):
-    tpl = env.get_template(name)
+    try:
+        tpl = env.get_template(name)
+    except jinja2.exceptions.TemplateNotFound:
+        raise ValueError(f"Template not found: {name}")
     return tpl.render(config=context)
 
 def assemble(cfg):
+	normalize_config(cfg)
     parts = []
     imp_tpl = resolve_name("imports", cfg)
     parts.append(render_template(imp_tpl, cfg) + "\n\n")
@@ -52,6 +106,10 @@ def assemble(cfg):
     for tpl in static:
         if tpl in env.loader.list_templates():
             parts.append(env.get_template(tpl).render(config=cfg) + "\n\n")
+    for shared in ["train/optimizers.j2", "train/losses.j2", "train/metrics.j2", "train/monitoring.j2"]:
+        if shared in env.loader.list_templates():
+            parts.append(env.get_template(shared).render(config=cfg) + "\n\n")
+        
     return "".join(parts)
 
 def write_output(code: str, output_path: Path):
