@@ -4,7 +4,7 @@ OPTIMIZER_ALIASES = {
     "sgd": "SGD",
     "nadam": "NAdam",
     "radam": "RAdam",
-    "lion": "Lion",  # user-defined
+    "lion": "Lion",  
     "rmsprop": "RMSprop",
     "adagrad": "Adagrad",
 }

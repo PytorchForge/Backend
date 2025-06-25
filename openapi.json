@@ -80,60 +80,253 @@
     },
     "components": {
         "schemas": {
-            "DataConfig": {
+            "DataFormat": {
+                "type": "string",
+                "enum": [
+                    "imagefolder",
+                    "csv",
+                    "json",
+                    "other"
+                ],
+                "title": "DataFormat"
+            },
+            "DataIOConfig": {
                 "properties": {
-                    "task_type": {
-                        "type": "string",
-                        "enum": [
-                            "ml",
-                            "dl"
-                        ],
-                        "title": "Task Type"
+                    "dataset": {
+                        "$ref": "#/components/schemas/DatasetConfig"
                     },
-                    "main_task": {
-                        "type": "string",
-                        "title": "Main Task"
-                    },
-                    "sub_task": {
-                        "type": "string",
-                        "title": "Sub Task"
-                    },
-                    "data_format": {
-                        "type": "string",
-                        "enum": [
-                            "imagefolder",
-                            "csv",
-                            "json",
-                            "other"
-                        ],
-                        "title": "Data Format"
-                    },
-                    "data_type": {
-                        "type": "string",
-                        "enum": [
-                            "file",
-                            "folder"
-                        ],
-                        "title": "Data Type"
-                    },
-                    "preprocessing": {
-                        "items": {
-                            "$ref": "#/components/schemas/PreprocessingStep"
-                        },
-                        "type": "array",
-                        "title": "Preprocessing"
+                    "dataloader": {
+                        "$ref": "#/components/schemas/DataloaderConfig"
                     }
                 },
                 "type": "object",
                 "required": [
-                    "task_type",
-                    "main_task",
-                    "sub_task",
-                    "data_format",
-                    "data_type",
-                    "preprocessing"
+                    "dataset",
+                    "dataloader"
                 ],
-                "title": "DataConfig"
+                "title": "DataIOConfig"
+            },
+            "DataType": {
+                "type": "string",
+                "enum": [
+                    "file",
+                    "folder"
+                ],
+                "title": "DataType"
+            },
+            "DataloaderConfig": {
+                "properties": {
+                    "batch_size": {
+                        "type": "integer",
+                        "title": "Batch Size",
+                        "default": 32
+                    },
+                    "shuffle": {
+                        "type": "boolean",
+                        "title": "Shuffle",
+                        "default": true
+                    },
+                    "num_workers": {
+                        "type": "integer",
+                        "title": "Num Workers",
+                        "default": 4
+                    },
+                    "pin_memory": {
+                        "type": "boolean",
+                        "title": "Pin Memory",
+                        "default": true
+                    },
+                    "drop_last": {
+                        "type": "boolean",
+                        "title": "Drop Last",
+                        "default": false
+                    },
+                    "prefetch_factor": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Prefetch Factor"
+                    },
+                    "persistent_workers": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Persistent Workers"
+                    }
+                },
+                "type": "object",
+                "title": "DataloaderConfig"
+            },
+            "DatasetConfig": {
+                "properties": {
+                    "split_type": {
+                        "type": "string",
+                        "enum": [
+                            "include",
+                            "exclude"
+                        ],
+                        "title": "Split Type",
+                        "default": "include"
+                    },
+                    "label_type": {
+                        "type": "string",
+                        "enum": [
+                            "folder-name",
+                            "file",
+                            "csv",
+                            "none"
+                        ],
+                        "title": "Label Type",
+                        "default": "folder-name"
+                    },
+                    "label_map": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": {
+                                    "type": "integer"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Label Map"
+                    },
+                    "return_format": {
+                        "type": "string",
+                        "enum": [
+                            "raw",
+                            "dict",
+                            "tuple"
+                        ],
+                        "title": "Return Format",
+                        "default": "dict"
+                    },
+                    "tokenizer_type": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Tokenizer Type"
+                    },
+                    "tokenizer_params": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Tokenizer Params"
+                    },
+                    "audio_duration": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Audio Duration"
+                    },
+                    "include_prompt": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Include Prompt"
+                    },
+                    "include_target": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Include Target"
+                    },
+                    "text_pair": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Text Pair"
+                    },
+                    "audio_pair": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Audio Pair"
+                    },
+                    "multi_class": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Multi Class"
+                    },
+                    "multi_label": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Multi Label"
+                    },
+                    "binary": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Binary"
+                    }
+                },
+                "type": "object",
+                "title": "DatasetConfig"
             },
             "EarlyStoppingConfig": {
                 "properties": {
@@ -156,48 +349,39 @@
             "GenerateDataModel": {
                 "properties": {
                     "data": {
-                        "$ref": "#/components/schemas/DataConfig"
+                        "$ref": "#/components/schemas/TaskConfig"
+                    },
+                    "dataloading": {
+                        "$ref": "#/components/schemas/DataIOConfig"
+                    },
+                    "preprocessing": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/configs__preprocessingconfig__PreprocessingStep"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Preprocessing",
+                        "description": "List of preprocessing steps to apply to the data"
                     },
                     "model": {
                         "$ref": "#/components/schemas/ModelConfig"
                     },
                     "training": {
                         "$ref": "#/components/schemas/TrainingConfig"
-                    },
-                    "monitoring": {
-                        "$ref": "#/components/schemas/MonitoringConfig"
-                    },
-                    "optimizers": {
-                        "items": {
-                            "$ref": "#/components/schemas/OptimizerConfig"
-                        },
-                        "type": "array",
-                        "title": "Optimizers"
-                    },
-                    "losses": {
-                        "items": {
-                            "$ref": "#/components/schemas/LossConfig"
-                        },
-                        "type": "array",
-                        "title": "Losses"
-                    },
-                    "metrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/MetricConfig"
-                        },
-                        "type": "array",
-                        "title": "Metrics"
                     }
                 },
                 "type": "object",
                 "required": [
                     "data",
+                    "dataloading",
                     "model",
-                    "training",
-                    "monitoring",
-                    "optimizers",
-                    "losses",
-                    "metrics"
+                    "training"
                 ],
                 "title": "GenerateDataModel"
             },
@@ -322,19 +506,6 @@
                 ],
                 "title": "ModelConfig"
             },
-            "MonitoringConfig": {
-                "properties": {
-                    "monitor": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array",
-                        "title": "Monitor"
-                    }
-                },
-                "type": "object",
-                "title": "MonitoringConfig"
-            },
             "OptimizerConfig": {
                 "properties": {
                     "name": {
@@ -352,24 +523,6 @@
                     "name"
                 ],
                 "title": "OptimizerConfig"
-            },
-            "PreprocessingStep": {
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    },
-                    "params": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Params"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "name"
-                ],
-                "title": "PreprocessingStep"
             },
             "PretrainedModel": {
                 "properties": {
@@ -424,6 +577,67 @@
                 ],
                 "title": "SchedulerConfig"
             },
+            "TaskConfig": {
+                "properties": {
+                    "task_type": {
+                        "type": "string",
+                        "enum": [
+                            "ml",
+                            "dl"
+                        ],
+                        "title": "Task Type"
+                    },
+                    "main_task": {
+                        "type": "string",
+                        "title": "Main Task"
+                    },
+                    "sub_task": {
+                        "type": "string",
+                        "title": "Sub Task"
+                    },
+                    "data_format": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DataFormat"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "data_type": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DataType"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "preprocessing": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/configs__taskconfig__PreprocessingStep"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Preprocessing"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "task_type",
+                    "main_task",
+                    "sub_task"
+                ],
+                "title": "TaskConfig"
+            },
             "TrainingConfig": {
                 "properties": {
                     "batch_size": {
@@ -450,10 +664,10 @@
                         "title": "Weight Decay",
                         "default": 0.0
                     },
-                    "early_stopping": {
+                    "optimizer": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/EarlyStoppingConfig"
+                                "$ref": "#/components/schemas/OptimizerConfig"
                             },
                             {
                                 "type": "null"
@@ -464,6 +678,40 @@
                         "anyOf": [
                             {
                                 "$ref": "#/components/schemas/SchedulerConfig"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "loss": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/LossConfig"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    },
+                    "metrics": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/MetricConfig"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Metrics"
+                    },
+                    "early_stopping": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/EarlyStoppingConfig"
                             },
                             {
                                 "type": "null"
@@ -511,6 +759,43 @@
                     "type"
                 ],
                 "title": "ValidationError"
+            },
+            "configs__preprocessingconfig__PreprocessingStep": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "PreprocessingStep"
+            },
+            "configs__taskconfig__PreprocessingStep": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name",
+                    "params"
+                ],
+                "title": "PreprocessingStep"
             }
         }
     }
