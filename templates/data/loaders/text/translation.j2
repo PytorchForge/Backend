@@ -1,27 +1,44 @@
-# Machine Translation Dataset
-import pandas as pd
-from torch.utils.data import Dataset
+import torch
+from torch.utils.data import Dataset, DataLoader
+from transformers import AutoTokenizer
+from pathlib import Path
 
-class {{ class_name }}(Dataset):
-    def __init__(self, csv_path, src_lang='en', tgt_lang='fr', tokenizer=None, max_length=128):
-        self.data = pd.read_csv(csv_path)
-        self.src_lang = src_lang
-        self.tgt_lang = tgt_lang
-        self.tokenizer = tokenizer
+class TextTranslationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', tokenizer_name='{{ tokenizer_name | default("xlm-roberta-base") }}', return_format='{{ return_format | default("dict") }}', max_length={{ max_length | default(512) }}, padding='{{ padding | default("max_length") }}', add_special_tokens={{ add_special_tokens | default("True") }}, return_attn_masks={{ return_attn_masks | default("True") }}, truncation='{{ truncation | default("right") }}', use_fast={{ use_fast | default("True") }}):
+        self.root = Path(root) / split
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=use_fast)
         self.max_length = max_length
+        self.padding = padding
+        self.return_format = return_format
+        self.return_attn_masks = return_attn_masks
+        self.truncation = truncation == 'right'
+        self.data = self._load_data()
 
-    def __getitem__(self, index):
-        src_text = self.data.loc[index, self.src_lang]
-        tgt_text = self.data.loc[index, self.tgt_lang]
-        if self.tokenizer:
-            src_enc = self.tokenizer(src_text, truncation=True, padding='max_length', max_length=self.max_length, return_tensors='pt')
-            tgt_enc = self.tokenizer(tgt_text, truncation=True, padding='max_length', max_length=self.max_length, return_tensors='pt')
-            return {
-                'input_ids': src_enc['input_ids'].squeeze(),
-                'attention_mask': src_enc['attention_mask'].squeeze(),
-                'labels': tgt_enc['input_ids'].squeeze()
-            }
-        return src_text, tgt_text
-
+    def _load_data(self):
+        srcs = sorted((self.root / 'source').glob('*.txt'))
+        return [(s.read_text().strip(), Path(str(s).replace('source', 'target')).read_text().strip()) for s in srcs]
+    
     def __len__(self):
         return len(self.data)
+
+    def __getitem__(self, idx):
+        src, tgt = self.data[idx]
+        enc = self.tokenizer(src, max_length=self.max_length, padding=self.padding, truncation=self.truncation, return_attention_mask=self.return_attn_masks, add_special_tokens=add_special_tokens, return_tensors='pt')
+        input_ids = enc['input_ids'].squeeze(0)
+        attention_mask = enc['attention_mask'].squeeze(0) if self.return_attn_masks else None
+
+        {% if return_format == 'tuple' %}
+        return input_ids, tgt
+        {% elif return_format == 'raw' %}
+        return input_ids
+        {% else %}
+        out = {'input_ids': input_ids, 'target': tgt}
+        {% if return_attn_masks %}
+        out['attention_mask'] = attention_mask
+        {% endif %}
+        return out
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = TextTranslationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)

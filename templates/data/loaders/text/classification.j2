@@ -1,24 +1,66 @@
-# Text Classification Dataset
-import pandas as pd
-from torch.utils.data import Dataset
+import torch
+from torch.utils.data import Dataset, DataLoader
+from transformers import AutoTokenizer
+from pathlib import Path
+import json
 
-class {{ class_name }}(Dataset):
-    def __init__(self, csv_path, tokenizer=None, max_length=128):
-        self.data = pd.read_csv(csv_path)
-        self.tokenizer = tokenizer
+class TextClassificationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', tokenizer_name='{{ tokenizer_name | default("bert-base-uncased") }}', label_type='{{ label_type | default("folder-name") }}', label_map={{ label_map | default("None") }}, return_format='{{ return_format | default("dict") }}', max_length={{ max_length | default(512) }}, padding='{{ padding | default("max_length") }}', truncation='{{ truncation | default("right") }}', add_special_tokens={{ add_special_tokens | default("True") }}, return_attn_masks={{ return_attn_masks | default("True") }}, use_fast={{ use_fast | default("True") }}, multi_class={{ multi_class | default("False") }}, multi_label={{ multi_label | default("False") }}, split_type='{{ split_type | default("include") }}'):
+        self.root = Path(root) / split
+        self.label_type = label_type
+        self.label_map = {{ label_map | default("self._infer_label_map()") }}
+        self.return_format = return_format
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=use_fast)
         self.max_length = max_length
+        self.padding = padding
+        self.truncation = truncation == 'right'
+        self.add_special_tokens = add_special_tokens
+        self.return_attn_masks = return_attn_masks
+        self.data = self._load_data()
 
-    def __getitem__(self, index):
-        text = self.data.loc[index, 'text']
-        label = self.data.loc[index, 'label']
-        if self.tokenizer:
-            enc = self.tokenizer(text, truncation=True, padding='max_length', max_length=self.max_length, return_tensors='pt')
-            return {
-                'input_ids': enc['input_ids'].squeeze(),
-                'attention_mask': enc['attention_mask'].squeeze(),
-                'label': label
-            }
-        return text, label
+    def _infer_label_map(self):
+        if self.label_type == 'folder-name':
+            classes = sorted([d.name for d in self.root.iterdir() if d.is_dir()])
+            return {cls: i for i, cls in enumerate(classes)}
+        raise NotImplementedError
+
+    def _load_data(self):
+        pairs = []
+        for cls in self.label_map:
+            for file in (self.root / cls).glob('*.txt'):
+                text = file.read_text().strip()
+                pairs.append((text, self.label_map[cls]))
+        return pairs
 
     def __len__(self):
         return len(self.data)
+
+    def __getitem__(self, idx):
+        text, label = self.data[idx]
+        enc = self.tokenizer(
+            text,
+            max_length=self.max_length,
+            padding=self.padding,
+            truncation=self.truncation,
+            return_attention_mask=self.return_attn_masks,
+            add_special_tokens=self.add_special_tokens,
+            return_tensors='pt'
+        )
+        input_ids = enc['input_ids'].squeeze(0)
+        attention_mask = enc['attention_mask'].squeeze(0) if self.return_attn_masks else None
+
+        {% if return_format == 'tuple' %}
+        return (input_ids, label)
+        {% elif return_format == 'raw' %}
+        return input_ids
+        {% else %}
+        out = {'input_ids': input_ids, 'label': label}
+        {% if return_attn_masks %}
+        out['attention_mask'] = attention_mask
+        {% endif %}
+        return out
+        {% endif %}
+
+def get_loader(root, batch_size=32, split='train', shuffle=True, **kwargs):
+    dataset = TextClassificationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)

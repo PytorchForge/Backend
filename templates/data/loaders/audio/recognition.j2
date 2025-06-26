@@ -1,32 +1,33 @@
-# Audio Recognition Dataset
+import torch
+from torch.utils.data import Dataset, DataLoader
 import torchaudio
-from torch.utils.data import Dataset
-import os
+from pathlib import Path
 
-class {{ class_name }}(Dataset):
-    def __init__(self, data_dir, transform=None, target_transform=None):
-        self.data_dir = data_dir
-        self.transform = transform
-        self.target_transform = target_transform
-        self.samples = self._load_samples()
-
-    def _load_samples(self):
-        txt_file = os.path.join(self.data_dir, 'metadata.txt')
-        samples = []
-        with open(txt_file, 'r') as f:
-            for line in f:
-                path, label = line.strip().split('\t')
-                samples.append((os.path.join(self.data_dir, path), label))
-        return samples
-
-    def __getitem__(self, index):
-        path, label = self.samples[index]
-        waveform, sample_rate = torchaudio.load(path)
-        if self.transform:
-            waveform = self.transform(waveform)
-        if self.target_transform:
-            label = self.target_transform(label)
-        return waveform, label
+class AudioRecognitionDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, return_format='{{ return_format | default("dict") }}'):
+        self.root = Path(root) / split
+        self.sample_rate = 16000
+        self.clip_samples = int(duration * self.sample_rate)
+        self.return_format = return_format
+        self.audio_files = list((self.root / 'audio').glob('*.wav'))
 
     def __len__(self):
-        return len(self.samples)
+        return len(self.audio_files)
+
+    def __getitem__(self, idx):
+        audio_path = self.audio_files[idx]
+        transcript_path = Path(str(audio_path).replace('audio', 'transcript').replace('.wav', '.txt'))
+        waveform = torchaudio.load(audio_path)[0][:, :self.clip_samples]
+        transcript = transcript_path.read_text().strip()
+
+        {% if return_format == 'tuple' %}
+        return waveform, transcript
+        {% elif return_format == 'raw' %}
+        return waveform
+        {% else %}
+        return {'audio': waveform, 'text': transcript}
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = AudioRecognitionDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
