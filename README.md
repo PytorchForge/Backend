@@ -8,5 +8,5 @@
 - communicate with UI using FastAPI
   - receive config
   - send back generated code
-  - send training status, inference results
+  - send training command, inference results
 - run training or inference scripts and return result to UI
