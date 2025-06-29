@@ -1,0 +1,70 @@
+{
+  "main_task": "Audio Processing",
+  "sub_task": "Audio Classification",
+  "base_path": "/home/haroon/REPOS/Backend/modules",
+  "data": {
+    "task_type": "dl",
+    "data_format": "folder",
+    "data_type": "folder",
+    "dataloading": {
+      "task": "Audio Processing",
+      "subtask": "Audio Classification",
+      "dataset": {
+        "split_type": "include",
+        "label_type": "folder-name",
+        "return_format": "dict"
+      },
+      "dataloader": {
+        "batch_size": 32,
+        "shuffle": true,
+        "num_workers": 4,
+        "pin_memory": true,
+        "drop_last": false
+      }
+    },
+    "preprocessing": [
+      {
+        "name": "Resample",
+        "params": {
+          "orig_freq": 48000,
+          "new_freq": 16000
+        }
+      },
+      {
+        "name": "MelSpectrogram",
+        "params": {
+          "n_fft": 1024,
+          "hop_length": 512
+        }
+      }
+    ]
+  },
+  "model": {
+    "use_pretrained": true,
+    "pretrained": {
+      "name": "panns_cnn14",
+      "params": {
+        "num_classes": 10
+      }
+    }
+  },
+  "training": {
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "epochs": 20,
+    "optimizer": {
+      "name": "Adam",
+      "params": {}
+    },
+    "loss": {
+      "name": "CrossEntropyLoss",
+      "params": {}
+    },
+    "metrics": [
+      {
+        "name": "accuracy",
+        "params": {}
+      }
+    ]
+  }
+}

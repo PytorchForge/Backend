@@ -1,0 +1,51 @@
+import torch
+from torch.utils.data import Dataset, DataLoader
+import torchaudio
+from pathlib import Path
+
+
+class AudioClassificationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, label_type='{{ label_type | default("folder-name") }}', label_map={{ label_map | default("None") }}, return_format='{{ return_format | default("dict") }}', multi_class={{ multi_class | default("False") }}, multi_label={{ multi_label | default("False") }}, split_type='{{ split_type | default("include") }}'):
+        self.root = Path(root) / split
+        self.duration = duration
+        self.return_format = return_format
+        self.label_type = label_type
+        self.label_map = {{ label_map | default("self._infer_label_map()") }}
+        self.sample_rate = 16000
+        self.clip_samples = int(self.duration * self.sample_rate)
+        self.data = self._load_files()
+
+    def _infer_label_map(self):
+        classes = sorted([d.name for d in self.root.iterdir() if d.is_dir()])
+        return {cls: i for i, cls in enumerate(classes)}
+
+    def _load_files(self):
+        data = []
+        for cls in self.label_map:
+            for file in (self.root / cls).glob('*.wav'):
+                data.append((file, self.label_map[cls]))
+        return data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        path, label = self.data[idx]
+        waveform, sr = torchaudio.load(path)
+        waveform = torchaudio.functional.resample(waveform, sr, self.sample_rate)
+        if waveform.shape[1] < self.clip_samples:
+            waveform = torch.nn.functional.pad(waveform, (0, self.clip_samples - waveform.shape[1]))
+        else:
+            waveform = waveform[:, :self.clip_samples]
+
+        {% if return_format == 'tuple' %}
+        return waveform, label
+        {% elif return_format == 'raw' %}
+        return waveform
+        {% else %}
+        return {'audio': waveform, 'label': label}
+        {% endif %}
+
+def get_loader(root, batch_size=16, split='train', shuffle=True, **kwargs):
+    dataset = AudioClassificationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)

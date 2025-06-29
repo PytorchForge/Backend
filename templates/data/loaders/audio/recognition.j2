@@ -1,0 +1,33 @@
+import torch
+from torch.utils.data import Dataset, DataLoader
+import torchaudio
+from pathlib import Path
+
+class AudioRecognitionDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, return_format='{{ return_format | default("dict") }}'):
+        self.root = Path(root) / split
+        self.sample_rate = 16000
+        self.clip_samples = int(duration * self.sample_rate)
+        self.return_format = return_format
+        self.audio_files = list((self.root / 'audio').glob('*.wav'))
+
+    def __len__(self):
+        return len(self.audio_files)
+
+    def __getitem__(self, idx):
+        audio_path = self.audio_files[idx]
+        transcript_path = Path(str(audio_path).replace('audio', 'transcript').replace('.wav', '.txt'))
+        waveform = torchaudio.load(audio_path)[0][:, :self.clip_samples]
+        transcript = transcript_path.read_text().strip()
+
+        {% if return_format == 'tuple' %}
+        return waveform, transcript
+        {% elif return_format == 'raw' %}
+        return waveform
+        {% else %}
+        return {'audio': waveform, 'text': transcript}
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = AudioRecognitionDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)

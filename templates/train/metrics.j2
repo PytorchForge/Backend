@@ -1,0 +1,15 @@
+# Metric function setup
+{% set name = config.metrics.name %}
+{% set args = config.metrics.params %}
+
+{% if name == "Accuracy" %}
+metrics = torchmetrics.Accuracy({{ args | join(", ") }})
+{% elif name == "F1Score" %}
+metrics = torchmetrics.F1Score({{ args | join(", ") }})
+{% elif name == "Recall" %}
+metrics = torchmetrics.Recall({{ args | join(", ") }})
+{% elif name == "MeanAbsoluteError" %}
+metrics= torchmetrics.MeanAbsoluteError({{ args | join(", ") }})
+{% else %}
+raise NotImplementedError("Unsupported metrics: " ~ name)
+{% endif %}

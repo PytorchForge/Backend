@@ -1,0 +1,173 @@
+{% macro linear(in_features, out_features, bias=True) %}
+nn.Linear(
+    in_features={{ in_features }},
+    out_features={{ out_features }},
+    bias={{ bias }}
+)
+{% endmacro %}
+
+{% macro bilinear(in1_features, in2_features, out_features, bias=True) %}
+nn.Bilinear(
+    in1_features={{ in1_features }},
+    in2_features={{ in2_features }},
+    out_features={{ out_features }},
+    bias={{ bias }}
+)
+{% endmacro %}
+
+{% macro conv(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros') %}
+nn.Conv(
+    in_channels={{ in_channels }},
+    out_channels={{ out_channels }},
+    kernel_size={{ kernel_size }},
+    stride={{ stride }},
+    padding={{ padding }},
+    dilation={{ dilation }},
+    groups={{ groups }},
+    bias={{ bias }},
+    padding_mode='{{ padding_mode }}'
+)
+{% endmacro %}
+
+{% macro convtranspose(in_channels, out_channels, kernel_size, stride=1, padding=0, output_padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros') %}
+nn.ConvTranspose(
+    in_channels={{ in_channels }},
+    out_channels={{ out_channels }},
+    kernel_size={{ kernel_size }},
+    stride={{ stride }},
+    padding={{ padding }},
+    output_padding={{ output_padding }},
+    dilation={{ dilation }},
+    groups={{ groups }},
+    bias={{ bias }},
+    padding_mode='{{ padding_mode }}'
+)
+{% endmacro %}
+
+{% macro maxpool(kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False) %}
+nn.MaxPool(
+    kernel_size={{ kernel_size }},
+    stride={{ stride if stride is not none else kernel_size }},
+    padding={{ padding }},
+    dilation={{ dilation }},
+    ceil_mode={{ ceil_mode }}
+)
+{% endmacro %}
+
+{% macro avgpool(kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False, count_include_pad=True, divisor_override=None) %}
+nn.AvgPool(
+    kernel_size={{ kernel_size }},
+    stride={{ stride if stride is not none else kernel_size }},
+    padding={{ padding }},
+    dilation={{ dilation }},
+    ceil_mode={{ ceil_mode }},
+    count_include_pad={{ count_include_pad }},
+    divisor_override={{ divisor_override }}
+)
+{% endmacro %}
+
+{% macro batchnorm(num_features, eps=1e-5, momentum=0.1, affine=True, track_running_stats=True) %}
+nn.BatchNorm(
+    num_features={{ num_features }},
+    eps={{ eps }},
+    momentum={{ momentum }},
+    affine={{ affine }},
+    track_running_stats={{ track_running_stats }}
+)
+{% endmacro %}
+
+{% macro layernorm(normalized_shape, eps=1e-5, elementwise_affine=True) %}
+nn.LayerNorm(
+    normalized_shape={{ normalized_shape }},
+    eps={{ eps }},
+    elementwise_affine={{ elementwise_affine }}
+)
+{% endmacro %}
+
+{% macro transformer(d_model=512, nhead=8, num_encoder_layers=6, num_decoder_layers=6, dim_feedforward=2048, dropout=0.1, activation='relu') %}
+nn.Transformer(
+    d_model={{ d_model }},
+    nhead={{ nhead }},
+    num_encoder_layers={{ num_encoder_layers }},
+    num_decoder_layers={{ num_decoder_layers }},
+    dim_feedforward={{ dim_feedforward }},
+    dropout={{ dropout }},
+    activation='{{ activation }}'
+)
+{% endmacro %}
+
+{% macro multiheadattention(embed_dim, num_heads, dropout=0.0, bias=True, add_bias_kv=False, kdim=None, vdim=None) %}
+nn.MultiheadAttention(
+    embed_dim={{ embed_dim }},
+    num_heads={{ num_heads }},
+    dropout={{ dropout }},
+    bias={{ bias }},
+    add_bias_kv={{ add_bias_kv }},
+    kdim={{ kdim }},
+    vdim={{ vdim }}
+)
+{% endmacro %}
+
+{% macro dropout(p=0.5, inplace=False) %}
+nn.Dropout(
+    p={{ p }},
+    inplace={{ inplace }}
+)
+{% endmacro %}
+
+{% macro dropout_channel(p=0.5, inplace=False) %}
+nn.DropoutChannel(
+    p={{ p }},
+    inplace={{ inplace }}
+)
+{% endmacro %}
+
+{% macro embedding(num_embeddings, embedding_dim, padding_idx=None, max_norm=None, sparse=False) %}
+nn.Embedding(
+    num_embeddings={{ num_embeddings }},
+    embedding_dim={{ embedding_dim }},
+    padding_idx={{ padding_idx }},
+    max_norm={{ max_norm }},
+    sparse={{ sparse }}
+)
+{% endmacro %}
+
+{% macro pixelshuffle(upscale_factor) %}
+nn.PixelShuffle(
+    upscale_factor={{ upscale_factor }}
+)
+{% endmacro %}
+
+{% macro upsample(size=None, scale_factor=None, mode='nearest') %}
+nn.Upsample(
+    size={{ size }},
+    scale_factor={{ scale_factor }},
+    mode='{{ mode }}'
+)
+{% endmacro %}
+
+{% macro lstm(input_size, hidden_size, num_layers=1, batch_first=False, bidirectional=False) %}
+nn.LSTM(
+    input_size={{ input_size }},
+    hidden_size={{ hidden_size }},
+    num_layers={{ num_layers }},
+    batch_first={{ batch_first }},
+    bidirectional={{ bidirectional }}
+)
+{% endmacro %}
+
+{% macro flatten(start_dim=1, end_dim=-1) %}
+nn.Flatten(
+    start_dim={{ start_dim }},
+    end_dim={{ end_dim }}
+)
+{% endmacro %}
+
+{% macro unfold(kernel_size, stride=1, padding=0, dilation=1) %}
+nn.Unfold(
+    kernel_size={{ kernel_size }},
+    stride={{ stride }},
+    padding={{ padding }},
+    dilation={{ dilation }}
+)
+{% endmacro %}

@@ -1,0 +1,93 @@
+{
+  "data": {
+    "data": {
+      "task_type": "dl",
+      "main_task": "Text Processing",
+      "sub_task": "Text Classification",
+      "data_format": "csv",
+      "data_type": "file"
+    },
+    "dataloading": {
+      "task": "Text Processing",
+      "subtask": "Text Classification",
+      "dataset": {
+        "split_type": "include",
+        "label_type": "csv",
+        "return_format": "dict",
+        "tokenizer_type": "bert-base-uncased",
+        "tokenizer_params": {
+          "max_length": 128,
+          "padding": "max_length",
+          "truncation": true
+        }
+      },
+      "dataloader": {
+        "batch_size": 16,
+        "shuffle": true,
+        "num_workers": 2,
+        "pin_memory": true,
+        "drop_last": false
+      }
+    },
+    "preprocessing": [
+      {
+        "name": "TextLowercase",
+        "params": {}
+      }
+    ],
+    "model": {
+      "use_pretrained": false,
+      "layers": [
+        {
+          "type": "Embedding",
+          "params": {
+            "num_embeddings": 30522,
+            "embedding_dim": 128
+          }
+        },
+        {
+          "type": "LSTM",
+          "params": {
+            "input_size": 128,
+            "hidden_size": 64,
+            "batch_first": true
+          }
+        },
+        {
+          "type": "Linear",
+          "params": {
+            "in_features": 64,
+            "out_features": 2
+          }
+        }
+      ]
+    },
+    "training": {
+      "batch_size": 16,
+      "learning_rate": 0.0005,
+      "epochs": 10,
+      "optimizer": {
+        "name": "Adam",
+        "params": {}
+      },
+      "loss": {
+        "name": "CrossEntropyLoss",
+        "params": {}
+      },
+      "metrics": [
+        {
+          "name": "f1_score",
+          "params": {}
+        }
+      ],
+      "early_stopping": {
+        "enabled": true,
+        "params": {
+          "patience": 3,
+          "monitor": "val_loss"
+        }
+      }
+    }
+  },
+  "base_path": "/home/haroon/REPOS/Backend/modules"
+}

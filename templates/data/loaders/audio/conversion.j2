@@ -1,0 +1,33 @@
+import torch
+from torch.utils.data import Dataset, DataLoader
+import torchaudio
+from pathlib import Path
+
+class AudioConversionDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, return_format='{{ return_format | default("dict") }}'):
+        self.root = Path(root) / split
+        self.sample_rate = 16000
+        self.clip_samples = int(duration * self.sample_rate)
+        self.return_format = return_format
+        self.data = list((self.root / 'input').glob('*.wav'))
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        in_path = self.data[idx]
+        out_path = Path(str(in_path).replace('input', 'target'))
+        input_audio = torchaudio.load(in_path)[0][:, :self.clip_samples]
+        target_audio = torchaudio.load(out_path)[0][:, :self.clip_samples]
+
+        {% if return_format == 'tuple' %}
+        return input_audio, target_audio
+        {% elif return_format == 'raw' %}
+        return input_audio
+        {% else %}
+        return {'input': input_audio, 'target': target_audio}
+        {% endif %}
+
+def get_loader(root, batch_size=4, split='train', shuffle=True, **kwargs):
+    dataset = AudioConversionDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)

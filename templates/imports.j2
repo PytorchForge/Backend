@@ -1,0 +1,53 @@
+{%- raw -%}
+import torch
+import random
+import numpy
+{%- endraw -%}
+
+{# Model imports #}
+{% if config.modelType == 'pretrained' %}
+from torchvision import models
+{% elif config.modelType == 'custom' %}
+import torch.nn as nn
+{% endif %}
+
+{# Data transforms imports based on data type #}
+{% if config.preprocessing and config.mainDataType == 'image' %}
+from torchvision import transforms
+{% elif config.preprocessing and config.mainDataType == 'audio' %}
+import torchaudio
+import torchaudio.transforms as audio_transforms
+{% elif config.preprocessing and config.mainDataType == 'text' %}
+from torchtext.transforms import ToTensor
+{% endif %}
+
+{# DataLoader import #}
+from torch.utils.data import DataLoader
+
+{# Optimizer import #}
+{% if config.optimizer %}
+import torch.optim as optim
+{% endif %}
+
+{# Loss import #}
+{% if config.loss and config.loss.category == 'nn' %}
+import torch.nn as nn
+{% endif %}
+
+{# Metrics imports based on task/subtask #}
+{% if config.subTask == 'classification' %}
+from torchmetrics import Accuracy
+{% elif config.subTask == 'generation' %}
+from torchmetrics import BLEUScore
+{% endif %}
+
+{# Additional imports per subtask #}
+{% if config.mainDataType == 'text' and config.subTask == 'generation' %}
+# For text generation models
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+{% endif %}
+
+{% if config.mainDataType == 'audio' and config.subTask == 'classification' %}
+# For audio classification metrics or features
+import torchaudio.functional as F
+{% endif %}

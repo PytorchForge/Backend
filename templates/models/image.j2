@@ -1,0 +1,48 @@
+{% macro resnet(pretrained, num_classes=1000, replace_stride_with_dilation=None) %}
+ResNet(
+    pretrained={{ pretrained }},
+    num_classes={{ num_classes }},
+    replace_stride_with_dilation={{ replace_stride_with_dilation }}
+)
+{% endmacro %}
+
+{% macro efficientnet(width_mult, depth_mult, dropout) %}
+EfficientNet(
+    width_mult={{ width_mult }},
+    depth_mult={{ depth_mult }},
+    dropout={{ dropout }}
+)
+{% endmacro %}
+
+{% macro vit(image_size, patch_size, num_layers, num_heads, hidden_dim) %}
+VisionTransformer(
+    image_size={{ image_size }},
+    patch_size={{ patch_size }},
+    num_layers={{ num_layers }},
+    num_heads={{ num_heads }},
+    hidden_dim={{ hidden_dim }}
+)
+{% endmacro %}
+
+{% macro faster_rcnn(backbone, num_classes, min_size=None, max_size=None) %}
+FasterRCNN(
+    backbone={{ backbone }},
+    num_classes={{ num_classes }},
+    min_size={{ min_size }},
+    max_size={{ max_size }}
+)
+{% endmacro %}
+
+{% macro mask_rcnn(box_detections_per_img) %}
+MaskRCNN(
+    box_detections_per_img={{ box_detections_per_img }}
+)
+{% endmacro %}
+
+{% macro deeplabv3(backbone, atrous_rates, num_classes) %}
+DeepLabV3(
+    backbone='{{ backbone }}',
+    atrous_rates={{ atrous_rates }},
+    num_classes={{ num_classes }}
+)
+{% endmacro %}

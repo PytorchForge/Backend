@@ -1,0 +1,62 @@
+import torch
+from torch.utils.data import Dataset, DataLoader
+from transformers import AutoTokenizer
+from pathlib import Path
+
+class TextGenerationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', tokenizer_name='{{ tokenizer_name | default("gpt2") }}', return_format='{{ return_format | default("dict") }}', max_length={{ max_length | default(512) }}, padding='{{ padding | default("max_length") }}', add_special_tokens={{ add_special_tokens | default("True") }}, return_attn_masks={{ return_attn_masks | default("True") }}, truncation='{{ truncation | default("right") }}', text_pair={{ text_pair | default("False") }}, include_prompt={{ include_prompt | default("True") }}, include_target={{ include_target | default("True") }}, use_fast={{ use_fast | default("True") }}):
+        self.root = Path(root) / split
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=use_fast)
+        self.max_length = max_length
+        self.padding = padding
+        self.return_format = return_format
+        self.include_prompt = include_prompt
+        self.include_target = include_target
+        self.return_attn_masks = return_attn_masks
+        self.text_pair = text_pair
+        self.truncation = truncation == 'right'
+        self.data = self._load_data()
+
+    def _load_data(self):
+        if self.text_pair:
+            prompt_files = sorted((self.root / 'prompt').glob('*.txt'))
+            return [(p.read_text().strip(), Path(str(p).replace('prompt', 'target')).read_text().strip()) for p in prompt_files]
+        else:
+            prompt_files = sorted((self.root / 'prompt').glob('*.txt'))
+            return [(p.read_text().strip(), None) for p in prompt_files]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        prompt, target = self.data[idx]
+        tokens = {}
+        if self.text_pair and self.include_prompt and self.include_target:
+            combined = prompt + self.tokenizer.sep_token + target
+            tokens = self.tokenizer(combined, max_length=self.max_length, padding=self.padding, truncation=self.truncation, return_attention_mask=self.return_attn_masks, add_special_tokens=add_special_tokens, return_tensors='pt')
+        elif self.include_prompt:
+            tokens = self.tokenizer(prompt, max_length=self.max_length, padding=self.padding, truncation=self.truncation, return_attention_mask=self.return_attn_masks, add_special_tokens=add_special_tokens, return_tensors='pt')
+        elif self.include_target and target:
+            tokens = self.tokenizer(target, max_length=self.max_length, padding=self.padding, truncation=self.truncation, return_attention_mask=self.return_attn_masks, add_special_tokens=add_special_tokens, return_tensors='pt')
+
+        input_ids = tokens['input_ids'].squeeze(0)
+        attention_mask = tokens['attention_mask'].squeeze(0) if self.return_attn_masks else None
+
+        {% if return_format == 'tuple' %}
+        return input_ids, target
+        {% elif return_format == 'raw' %}
+        return input_ids
+        {% else %}
+        out = {'input_ids': input_ids}
+        {% if return_attn_masks %}
+        out['attention_mask'] = attention_mask
+        {% endif %}
+        {% if target %}
+        out['target'] = target
+        {% endif %}
+        return out
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = TextGenerationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)

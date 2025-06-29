@@ -1,0 +1,39 @@
+import torch
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
+from PIL import Image
+from pathlib import Path
+
+class SegmentationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', return_format='{{ return_format | default("dict") }}', label_map={{ label_map | default("None") }}, split_type='{{ split_type | default("include") }}'):
+        self.root = Path(root) / split
+        self.return_format = return_format
+        self.image_paths = sorted((self.root / 'images').glob('*.jpg'))
+        self.mask_paths = [Path(str(p).replace('images', 'masks').replace('.jpg', '.png')) for p in self.image_paths]
+        self.img_transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.ToTensor()
+        ])
+        self.mask_transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.PILToTensor()
+        ])
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        image = self.img_transform(Image.open(self.image_paths[idx]).convert("RGB"))
+        mask = self.mask_transform(Image.open(self.mask_paths[idx]))[0].long()
+
+        {% if return_format == 'tuple' %}
+        return image, mask
+        {% elif return_format == 'raw' %}
+        return image
+        {% else %}
+        return {'image': image, 'mask': mask}
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = SegmentationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
