@@ -30,14 +30,14 @@ AUDIO_TRANSFORMS = {
 }
 
 TEXT_TRANSFORMS = {
-    "RegexTokenizer": {"pattern": r"\w+"},
-    "SentencePieceTokenizer": {"sp_model": "model_path.model"},
+    "RegexTokenizer": {"patterns_list": r"\w+"},
+    "SentencePieceTokenizer": {"sp_model_path": "model_path.model"},
     "VocabTransform": {"vocab": []},
     "ToTensor": {"dtype": "int64"},
     "Truncate": {"max_seq_len": 128},
     "PadTransform": {"max_length": 128, "pad_value": 0},
     "AddToken": {"token": "<CLS>", "begin": True},
-    "BARTTokenizer": {"tokenizer": "facebook/bart-base"},
+    "BERTTokenizer": {"tokenizer": "facebook/bart-base"},
     "LabelToIndex": {"label_names": []}
 }
 
