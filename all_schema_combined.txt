@@ -1,0 +1,835 @@
+
+
+### ./pipelineDL.audio.ts ###
+
+
+import * as z from "zod/v4"
+import {
+  TensorD,
+  customModels,
+  pipelineDLLossesSchema,
+  pipelineDLOptimizersSchema,
+  pipelineDLMonitoringSchema,
+  pipelineDLMetricsSchema,
+  pipelineDLEarlyStoppingSchema,
+  pipelineDLLRSchedularSchema,
+  dataFormatPickerSchema,
+  trainingHyperParametersSchema,
+} from "./pipelineDL.general"
+import { objectKeys } from "ts-extras"
+
+export const audioTransformersSchema = z.object({
+  Speed: z.object({
+    orig_freq: z.number().default(16000),
+    factor: z.number().default(1.0),
+  }),
+  AmplitudeToDB: z.object({
+    stype: z.enum(["power", "magnitude"]).default("power"),
+    top_db: z.number().optional(),
+  }),
+  Resample: z.object({
+    orig_freq: z.number().default(16000),
+    new_freq: z.number().default(16000),
+    resampling_method: z
+      .enum(["sinc_interp_hann", "sinc_interp_kaiser"])
+      .default("sinc_interp_hann"),
+    lowpass_filter_width: z.number().default(6),
+    rolloff: z.number().default(0.99),
+    beta: z.number().optional(),
+    dtype: TensorD.default("float32"),
+  }),
+  Fade: z.object({
+    fade_in_len: z.number().optional().default(0),
+    fade_out_len: z.number().optional().default(0),
+    fade_shape: z.enum(["half_sine", "linear", "logarithmic", "exponential"]),
+  }),
+  Vol: z.object({
+    gain: z.number().default(1.0),
+    gain_type: z.enum(["amplitude", "power", "db"]).default("amplitude"),
+  }),
+  Loudness: z.object({
+    sample_rate: z.number().default(16000),
+  }),
+  Spectogram: z.object({
+    n_fft: z.number().optional(),
+    win_length: z.number().optional(),
+    hop_length: z.number().optional(),
+    pad: z.number().optional(),
+    power: z.number().optional(),
+    normalized: z
+      .union([z.enum(["window", "frame-length"]), z.boolean()])
+      .default(false)
+      .optional(),
+    center: z.boolean(),
+    pad_mode: z.enum(["reflect"]).default("reflect").optional(),
+    onesided: z.boolean().optional().default(true),
+  }),
+  MelSpectrogram: z.object({
+    sample_rate: z.number().optional().default(16000),
+    n_fft: z.number().optional().default(400),
+    n_mels: z.number().optional().default(120),
+    f_min: z.number().optional().default(0.0),
+    f_max: z.number().optional(),
+    hop_length: z.number().optional(),
+  }),
+  MFCC: z.object({
+    sample_rate: z.number().optional().default(16000),
+    n_mfcc: z.number().optional().default(40),
+    dct_type: z.number().optional().default(2),
+    log_mels: z.boolean().optional().default(false),
+  }),
+  TimeStrech: z.object({
+    n_freq: z.number().default(201),
+    fixed_rate: z.number().optional(),
+  }),
+  FrequencyMasking: z.object({
+    freq_mask_param: z.number().default(30),
+    iid_masks: z.boolean().optional(),
+  }),
+  TimeMasking: z.object({
+    time_mask_param: z.number().default(40),
+    iid_masks: z.boolean().optional(),
+    p: z.boolean().optional(),
+  }),
+})
+
+export const audioPretrainedModelsSchema = z.object({
+  Conformer: z.object({
+    input_dim: z.number().default(80),
+    num_heads: z.number().default(4),
+    ffn_dim: z.number().default(256),
+    num_layers: z.number().default(6),
+    depthwise_conv_kernel_size: z.number().default(31),
+    dropout: z.number().optional().default(0.0),
+    use_group_norm: z.boolean().optional().default(false),
+    convolution_first: z.boolean().optional().default(false),
+  }),
+  Wave2Letter: z.object({
+    num_classes: z.number().default(40),
+    input_type: z.string().optional().default("waveform"),
+    num_features: z.number().optional().default(1),
+  }),
+  WaveRNN: z.object({
+    upsample_scales: z.array(z.number()).default([5, 5, 8]),
+    n_classes: z.number().default(256),
+    hop_length: z.number().default(200),
+    n_res_block: z.number().optional().default(10),
+    n_rnn: z.number().optional().default(512),
+    n_fc: z.number().optional().default(512),
+    kernel_size: z.number().optional().default(5),
+    n_freq: z.number().optional().default(128),
+    n_hidden: z.number().optional().default(128),
+    n_output: z.number().optional().default(128),
+  }),
+})
+
+/** gives an array of transformers that can be used when mainTask = 'audio' */
+export const audioTransformers = objectKeys(audioTransformersSchema)
+
+/** gives an array of pretrainedModels that can be used when mainTask = 'audio' */
+export const audioPretrainedModels = objectKeys(audioPretrainedModelsSchema)
+
+export const pipelineDLAudioSchema = z.object({
+  mainTask: z.literal("audio"),
+  subTask: z
+    .enum(["classification", "recognition", "conversion", "generation"])
+    .default("classification"),
+  dataFormat: z
+    .enum(["wav", "mp3", "flac", "pytorch-tensor", "pickle"])
+    .default("mp3"),
+  dataFormatPicker: dataFormatPickerSchema,
+  transformers: z.array(z.enum(audioTransformers)).default([]),
+  pretrainedModels: z.array(z.enum(audioPretrainedModels)).default([]),
+  customModels: z.array(z.enum(customModels)).default([]),
+  losses: pipelineDLLossesSchema,
+  optimizers: pipelineDLOptimizersSchema,
+  monitoring: pipelineDLMonitoringSchema,
+  metrics: pipelineDLMetricsSchema,
+  trainingHyperParameters: trainingHyperParametersSchema,
+  earlyStopping: pipelineDLEarlyStoppingSchema,
+  lrSchedular: pipelineDLLRSchedularSchema,
+})
+
+
+### ./pipelineDL.general.ts ###
+
+
+import { objectKeys } from "ts-extras"
+import * as z from "zod/v4"
+
+export const Interpolation = z.enum([
+  "nearest",
+  "nearest_exact",
+  "bilinear",
+  "bicubic",
+])
+export type InterpolationType = z.infer<typeof Interpolation>
+
+export const TensorD = z.enum(["float32", "float64", "int32", "int64"]) // Example
+export type TensorDType = z.infer<typeof TensorD>
+
+export const dataFormatPickerSchema = z.object({
+  type: z.enum(["file", "folder"]).default('file'),
+  path: z.string().default('')
+}).default({
+  type: 'file',
+  path: ''
+})
+
+export const pipelineDLCustomModelsSchema = z.object({
+  Linear: z.object({
+    in_features: z.array(z.number()),
+    out_features: z.array(z.number()),
+    bias: z.boolean().optional(),
+  }),
+
+  Bilinear: z.object({
+    in1_features: z.array(z.number()),
+    in2_features: z.array(z.number()),
+    out_features: z.array(z.number()),
+    bias: z.boolean().optional(),
+  }),
+
+  Conv1d: z.object({
+    in_channels: z.array(z.number()),
+    out_channels: z.array(z.number()),
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+    groups: z.number().optional(),
+    bias: z.boolean().optional(),
+    padding_mode: z.string().optional(),
+  }),
+
+  Conv2d: z.object({
+    in_channels: z.array(z.number()),
+    out_channels: z.array(z.number()),
+    kernel_size: z.array(z.number()),
+    stride: z.number(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+    groups: z.number().optional(),
+    bias: z.boolean().optional(),
+    padding_mode: z.string().optional(),
+  }),
+
+  Conv3d: z.object({
+    in_channels: z.array(z.number()),
+    out_channels: z.array(z.number()),
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+    groups: z.number().optional(),
+    bias: z.boolean().optional(),
+    padding_mode: z.string().optional(),
+  }),
+
+  ConvTranspose1d: z.object({
+    in_channels: z.array(z.number()),
+    out_channels: z.array(z.number()),
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    output_padding: z.number().optional(),
+    bias: z.boolean().optional(),
+  }),
+
+  ConvTranspose2d: z.object({
+    in_channels: z.array(z.number()),
+    out_channels: z.array(z.number()),
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    output_padding: z.number().optional(),
+    bias: z.boolean().optional(),
+  }),
+
+  ConvTranspose3d: z.object({
+    in_channels: z.array(z.number()),
+    out_channels: z.array(z.number()),
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    output_padding: z.number().optional(),
+    bias: z.boolean().optional(),
+  }),
+
+  MaxPool1d: z.object({
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+    ceil_mode: z.boolean().optional(),
+  }),
+
+  MaxPool2d: z.object({
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+    ceil_mode: z.boolean().optional(),
+  }),
+
+  MaxPool3d: z.object({
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+    ceil_mode: z.boolean().optional(),
+  }),
+
+  AvgPool1d: z.object({
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+    ceil_mode: z.boolean().optional(),
+    count_include_pad: z.boolean().optional(),
+  }),
+
+  AvgPool2d: z.object({
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+    ceil_mode: z.boolean().optional(),
+    count_include_pad: z.boolean().optional(),
+  }),
+
+  AvgPool3d: z.object({
+    kernel_size: z.array(z.number()),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+    ceil_mode: z.boolean().optional(),
+    count_include_pad: z.boolean().optional(),
+  }),
+
+  BatchNorm1d: z.object({
+    num_features: z.number(),
+    eps: z.number().optional(),
+    momentum: z.number().optional(),
+    affine: z.boolean().optional(),
+    track_running_stats: z.boolean().optional(),
+  }),
+
+  BatchNorm2d: z.object({
+    num_features: z.number(),
+    eps: z.number().optional(),
+    momentum: z.number().optional(),
+    affine: z.boolean().optional(),
+    track_running_stats: z.boolean().optional(),
+  }),
+
+  BatchNorm3d: z.object({
+    num_features: z.number(),
+    eps: z.number().optional(),
+    momentum: z.number().optional(),
+    affine: z.boolean().optional(),
+    track_running_stats: z.boolean().optional(),
+  }),
+
+  LayerNorm: z.object({
+    normalized_shape: z.array(z.number()),
+    eps: z.number().optional(),
+    elementwise_affine: z.boolean().optional(),
+  }),
+
+  Transformer: z.object({
+    d_model: z.number().optional(),
+    nhead: z.number().optional(),
+    num_encoder_layers: z.number().optional(),
+    num_decoder_layers: z.number().optional(),
+    dim_feedforward: z.number().optional(),
+    dropout: z.number().optional(),
+    activation: z.string().optional(),
+  }),
+
+  MultiheadAttention: z.object({
+    embed_dim: z.number(),
+    num_heads: z.number(),
+    dropout: z.number().optional(),
+    bias: z.boolean().optional(),
+    add_bias_kv: z.boolean().optional(),
+  }),
+
+  Dropout: z.object({
+    p: z.number(),
+    inplace: z.boolean().optional(),
+  }),
+
+  Dropout1d: z.object({
+    p: z.number(),
+    inplace: z.boolean().optional(),
+  }),
+
+  Dropout2d: z.object({
+    p: z.number(),
+    inplace: z.boolean().optional(),
+  }),
+
+  Dropout3d: z.object({
+    p: z.number(),
+    inplace: z.boolean().optional(),
+  }),
+
+  Embedding: z.object({
+    num_embeddings: z.number(),
+    embedding_dimx: z.number(),
+    padding_idx: z.number().optional(),
+    max_norm: z.number().optional(),
+    sparse: z.boolean().optional(),
+  }),
+
+  PixelShuffle: z.object({
+    upscale_factor: z.number(),
+  }),
+
+  Upsample: z.object({
+    size: z.number(),
+    scale_factor: z.number().optional(),
+    mode: Interpolation.optional(),
+  }),
+
+  LSTM: z.object({
+    input_size: z.array(z.number()),
+    hidden_size: z.array(z.number()),
+    num_layers: z.number().optional(),
+    batch_first: z.boolean().optional(),
+    bidirectional: z.boolean().optional(),
+  }),
+
+  Flatten: z.object({
+    start_dim: z.number(),
+    end_dim: z.number(),
+  }),
+
+  Unfold: z.object({
+    kernel_size: z.number(),
+    stride: z.number().optional(),
+    padding: z.number().optional(),
+    dilation: z.number().optional(),
+  }),
+})
+export const customModels = objectKeys(pipelineDLCustomModelsSchema)
+
+const ReductionSchema = z.enum(["None", "Mean", "Sum"])
+export const pipelineDLLossesSchema = z.object({
+  CrossEntropyLoss: z.object({
+    weight: z.array(z.number()).optional(),
+    size_average: z.boolean().optional(),
+    ignore_index: z.number().optional(),
+    reduce: z.boolean().optional(),
+    reduction: ReductionSchema.optional(),
+    label_smoothing: z.number().optional(),
+  }).optional(),
+
+  BCELoss: z.object({
+    weight: z.array(z.number()).optional(),
+    size_average: z.boolean().optional(),
+    reduce: z.boolean().optional(),
+    reduction: ReductionSchema.optional(),
+  }).optional(),
+
+  BCEWithLogitsLoss: z.object({
+    weight: z.array(z.number()).optional(),
+    size_average: z.boolean().optional(),
+    reduce: z.boolean().optional(),
+    reduction: ReductionSchema.optional(),
+    pos_weight: z.array(z.number()).optional(),
+  }).optional(),
+
+  MSELoss: z.object({
+    size_average: z.boolean().optional(),
+    reduce: z.boolean().optional(),
+    reduction: ReductionSchema.optional(),
+  }).optional(),
+
+  L1Loss: z.object({
+    size_average: z.boolean().optional(),
+    reduce: z.boolean().optional(),
+    reduction: ReductionSchema.optional(),
+  }).optional(),
+}).default({})
+
+export const pipelineDLOptimizersSchema = z.object({
+  Adam: z.object({
+    lr: z.number().optional(),
+    betas: z.array(z.number()).optional(),
+    eps: z.number().optional(),
+    weight_decay: z.number().optional(),
+    amsgrad: z.boolean().optional(),
+  }).optional(),
+
+  SDG: z.object({
+    lr: z.number().optional(),
+    momentum: z.number().optional(),
+    weight_decay: z.number().optional(),
+    dampening: z.number().optional(),
+    nesterov: z.number().optional(),
+  }).optional(),
+
+  RMSprop: z.object({
+    lr: z.number().optional(),
+    alpha: z.number().optional(),
+    eps: z.number().optional(),
+    weight_decay: z.number().optional(),
+    momentum: z.number().optional(),
+    centered: z.boolean().optional(),
+  }).optional(),
+
+  Adagrad: z.object({
+    lr: z.number().optional(),
+    lr_decay: z.number().optional(),
+    weighti_decay: z.number().optional(),
+    initial_accumulator: z.number().optional(),
+  }).optional(),
+
+  NAdam: z.object({
+    lr: z.number().optional(),
+    betas: z.number().optional(),
+    eps: z.number().optional(),
+    weight_decay: z.number().optional(),
+  }).optional(),
+}).default({})
+
+/**
+ * They don't have types.
+ * Infact it will just be select options (multi select).
+ * Or in other words. the state.monitoring will be an array ~ <Set particularly> that can contain any of these values.
+ *
+ * - && This is not monitors (is something diff.) > it is monitoring
+ * */
+export const pipelineDLMonitoringSchema = z.array(
+  z.enum([
+    "use_tensorboard",
+    "use_wandb",
+    "use_mlflow",
+    "resource_alerts",
+    "threshold_alerts",
+  ])
+).default([])
+
+const TaskSchema = z.enum(["binary", "multiclass", "multilabel"])
+const AverageSchema = z.enum(["micro", "macro", "weighted", "none"])
+export const pipelineDLMetricsSchema = z.object({
+  Accuracy: z.object({
+    task: TaskSchema,
+    num_classes: z.number().optional(),
+    threshold: z.number().optional(),
+    top_k: z.number().optional(),
+    average: AverageSchema.optional(),
+  }).optional(),
+
+  F1Score: z.object({
+    task: TaskSchema,
+    num_classes: z.number().optional(),
+    threshold: z.number().optional(),
+    top_k: z.number().optional(),
+    average: AverageSchema.optional(),
+  }).optional(),
+
+  Recall: z.object({
+    task: TaskSchema,
+    num_classes: z.number().optional(),
+    threshold: z.number().optional(),
+    top_k: z.number().optional(),
+    average: AverageSchema.optional(),
+  }).optional(),
+
+  MeanAbsoluteError: z.object({
+    num_outputs: z.number().optional(),
+  }).optional(),
+}).default({})
+
+export const trainingHyperParametersSchema = z.object({
+  batch_size: z.number().default(32),
+  learning_rate: z.number().default(0.1),
+  epochs: z.number().default(10),
+  weight_decay: z.number().default(0)
+}).default({
+  batch_size: 32,
+  learning_rate: 0.1,
+  epochs: 10,
+  weight_decay: 0
+})
+
+const ModeSchema = z.enum(["min", "max"])
+const MonitorSchema = z.enum(["val_loss"])
+export const pipelineDLEarlyStoppingSchema = z.object({
+  patience: z.number().default(5),
+  min_delta: z.number().optional(),
+  mode: ModeSchema.optional(),
+  monitor: MonitorSchema.optional(),
+  verbose: z.boolean().optional(),
+  restore_best_weights: z.boolean().optional(),
+}).default({
+  patience: 5
+})
+
+export const pipelineDLLRSchedularSchema = z.object({
+  ReduceLROnPlateau: z.object({
+    patience: z.number(),
+    factor: z.number().optional(),
+    mode: ModeSchema.optional(),
+    threshold: z.number().optional(),
+  }),
+}).default({
+  ReduceLROnPlateau: { patience: 10 }
+})
+
+
+### ./pipelineDL.image.ts ###
+
+
+import * as z from "zod/v4"
+import {
+  Interpolation,
+  TensorD,
+  customModels,
+  pipelineDLLossesSchema,
+  pipelineDLOptimizersSchema,
+  pipelineDLMonitoringSchema,
+  pipelineDLMetricsSchema,
+  pipelineDLEarlyStoppingSchema,
+  pipelineDLLRSchedularSchema,
+  dataFormatPickerSchema,
+  trainingHyperParametersSchema,
+} from "./pipelineDL.general"
+import { objectKeys } from "ts-extras"
+
+export const imageTransformersSchema = z.object({
+  Resize: z.object({
+    size: z.array(z.number()).default([224, 224]),
+    interpolation: Interpolation.optional().default("bilinear"),
+  }),
+  RandomCrop: z.object({
+    size: z.array(z.number()).default([224, 224]),
+    padding: z.array(z.number()).optional(),
+    pad_if_needed: z.boolean().optional(),
+  }),
+  RandomHorizontalFlip: z.object({
+    p: z.number().default(0.5),
+  }),
+  ColorJitter: z.object({
+    brightness: z.number().default(0.4),
+    contrast: z.number().default(0.4),
+    saturation: z.number().default(0.4),
+    hue: z.number().default(0.1),
+  }),
+  Grayscale: z.object({
+    num_output_channels: z.number().default(1),
+  }),
+  RandomAdjustSharpness: z.object({
+    sharpness_factor: z.number().default(2),
+    p: z.number().optional().default(0.5),
+  }),
+  Normalize: z.object({
+    mean: z.array(z.number()).default([0.5]),
+    std: z.array(z.number()).default([0.5]),
+  }),
+  ConvertImageDtype: z.object({
+    dtype: TensorD.default("float32"),
+  }),
+  ToTensor: z.object({
+    /** Empty object means no param input */
+  }),
+  RandomErasing: z.object({
+    p: z.number().default(0.5),
+    scale: z.array(z.number()).default([0.02, 0.33]).optional(),
+    ratio: z.array(z.number()).default([0.3, 3.3]).optional(),
+    value: z.number().default(0).optional(),
+  }),
+  GaussianBlur: z.object({
+    kernel_size: z.number().default(3),
+    sigma: z.array(z.number()).default([0.1, 2.0]),
+  }),
+})
+
+export const imagePretrainedModelsSchema = z.object({
+  ResNet: z.object({
+    pretrained: z.boolean().default(true),
+    num_classes: z.number().default(1000),
+  }),
+  EfficientNet: z.object({}),
+  VisionTransformer: z.object({
+    image_size: z.number().default(224),
+    patch_size: z.number().default(16),
+    num_layers: z.number().default(12),
+    num_heads: z.number().default(12),
+    hidden_dim: z.number().default(768),
+  }),
+  FasterRCNN: z.object({
+    backbone: z.string().default("resnet50"),
+    num_classes: z.number().default(91),
+    min_size: z.number().default(800),
+    max_size: z.number().default(1333),
+  }),
+  MaskRCNN: z.object({
+    backbone: z.string().default("resnet50"),
+    num_classes: z.number().default(91),
+  }),
+  DeepLabV3: z.object({
+    weights: z.string().default("resnet50"),
+    num_classes: z.number().default(21),
+  }),
+})
+
+/** gives an array of transformers that can be used when mainTask = 'image' */
+export const imageTransformers = objectKeys(imageTransformersSchema)
+
+/** gives an array of pretrainedModels that can be used when mainTask = 'image' */
+export const imagePretrainedModels = objectKeys(imagePretrainedModelsSchema)
+
+export const pipelineDLImageSchema = z.object({
+  mainTask: z.literal("image"),
+  subTask: z
+    .enum(["classification", "generation", "object-detection", "image-segmentation"])
+    .default('classification'),
+  dataFormat: z
+    .enum(["png", "jpeg", "jpg", "pytorch-tensor", "pickle"])
+    .default('png'),
+  dataFormatPicker: dataFormatPickerSchema,
+  transformers: z.array(z.enum(imageTransformers)).default([]),
+  pretrainedModels: z.array(z.enum(imagePretrainedModels)).default([]),
+  customModels: z.array(z.enum(customModels)).default([]),
+  losses: pipelineDLLossesSchema,
+  optimizers: pipelineDLOptimizersSchema,
+  monitoring: pipelineDLMonitoringSchema,
+  metrics: pipelineDLMetricsSchema,
+  trainingHyperParameters: trainingHyperParametersSchema,
+  earlyStopping: pipelineDLEarlyStoppingSchema,
+  lrSchedular: pipelineDLLRSchedularSchema,
+})
+
+
+### ./pipelineDL.text.ts ###
+
+
+import * as z from "zod/v4"
+import {
+  TensorD,
+  customModels,
+  pipelineDLLossesSchema,
+  pipelineDLOptimizersSchema,
+  pipelineDLMonitoringSchema,
+  pipelineDLMetricsSchema,
+  pipelineDLEarlyStoppingSchema,
+  pipelineDLLRSchedularSchema,
+  dataFormatPickerSchema,
+  trainingHyperParametersSchema,
+} from "./pipelineDL.general"
+import { objectKeys } from "ts-extras"
+
+export const textTransformersSchema = z.object({
+  RegexTokenizer: z
+    .object({
+      /** It will be array of regex patterns, the user will type */
+      /** UI-ELEMENT: TEXT BOX ~ write values as comma separated */
+      patterns_list: z.array(z.string()).default(["w+"]),
+    })
+    .optional(),
+  SentencePieceTokenizer: z
+    .object({
+      /** UI-ELEMENT:  FILE PICKER */
+      sp_model_path: z.string().optional(),
+    })
+    .optional(),
+  VocabTransform: z
+    .object({
+      /** UI-ELEMENT:  TEXTBOX  comma separated */
+      vocab: z.array(z.string()).default([]),
+    })
+    .optional(),
+  ToTensor: z
+    .object({
+      /** UI-ELEMENT:  selectMenu  */
+      dtype: TensorD.default("int64"),
+    })
+    .optional(),
+  Truncate: z
+    .object({
+      /** UI-ELEMENT:  number input box */
+      max_seq_len: z.number().default(128),
+    })
+    .optional(),
+  PadTransform: z
+    .object({
+      /** UI-ELEMENT: both: number iniput box */
+      max_length: z.number().default(128),
+      pad_value: z.number().default(0),
+    })
+    .optional(),
+  AddToken: z
+    .object({
+      /** UI-ELEMENT: text box  */
+      token: z.array(z.string()).default(["<CLS>"]),
+      begin: z.boolean().optional().default(true),
+    })
+    .optional(),
+  BERTTokenizer: z
+    .object({
+      /** UI-ELEMENT: file path */
+      tokenizer: z.string().default("facebook/bart-base"),
+    })
+    .optional(),
+  LabelToIndex: z
+    .object({
+      /** UI-ELEMENT:  text box []*/
+      label_names: z.array(z.string()).default([]),
+    })
+    .optional(),
+})
+
+export const textPretrainedModelsSchema = z.object({
+  GloVe: z.object({
+    dim: z.number().default(300),
+    name: z.string().default("6B"),
+  }),
+  FastText: z.object({
+    language: z.string().default("en"),
+  }),
+  Transformer: z.object({
+    d_model: z.number().default(512).optional(),
+    nhead: z.number().default(8).optional(),
+    num_encoder_layers: z.number().default(6).optional(),
+    num_decoder_layers: z.number().default(6).optional(),
+    dim_feedforward: z.number().default(2048).optional(),
+    dropout: z.number().default(0.1).optional(),
+    activation: z.string().default("<function relu>").optional(),
+    layer_norm_eps: z.number().default(1e-5).optional(),
+    batch_first: z.boolean().default(false).optional(),
+    norm_first: z.boolean().default(true).optional(),
+    device: z.string().optional(),
+    dtype: TensorD.default("float32").optional(),
+  }),
+})
+
+/** gives an array of transformers that can be used when mainTask = 'text' */
+export const textTransformers = objectKeys(textTransformersSchema)
+
+/** gives an array of pretrainedModels that can be used when mainTask = 'text' */
+export const textPretrainedModels = objectKeys(textPretrainedModelsSchema)
+
+export const pipelineDLTextSchema = z.object({
+  mainTask: z.literal("text"),
+  subTask: z
+    .enum(["classification", "summarization", "translation", "generation"])
+    .default("classification"),
+  dataFormat: z
+    .enum(["csv", "plain-text", "pytorch-tensor", "pickle"])
+    .default("plain-text"),
+  dataFormatPicker: dataFormatPickerSchema,
+  transformers: z.array(z.enum(textTransformers)).default([]),
+  pretrainedModels: z.array(z.enum(textPretrainedModels)).default([]),
+  customModels: z.array(z.enum(customModels)).default([]),
+  losses: pipelineDLLossesSchema,
+  optimizers: pipelineDLOptimizersSchema,
+  monitoring: pipelineDLMonitoringSchema,
+  metrics: pipelineDLMetricsSchema,
+  trainingHyperParameters: trainingHyperParametersSchema,
+  earlyStopping: pipelineDLEarlyStoppingSchema,
+  lrSchedular: pipelineDLLRSchedularSchema,
+})
