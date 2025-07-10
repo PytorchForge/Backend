@@ -1,0 +1,1224 @@
+
+
+### ./__init__.py ###
+
+
+
+
+### ./test_parser.py ###
+
+
+import subprocess
+import tempfile
+import json
+import os
+from pathlib import Path
+
+base_dir = Path(__file__).parent
+
+config_variants = [
+    {
+        "name": "pretrained_image_classification",
+        "config": {
+            "mainTask": "classification",
+            "subTask": "image",
+            "modelType": "pretrained"
+        }
+    },
+    {
+        "name": "custom_audio_classification",
+        "config": {
+            "mainTask": "classification",
+            "subTask": "audio",
+            "modelType": "custom"
+        }
+    },
+    {
+        "name": "pretrained_text_generation",
+        "config": {
+            "mainTask": "generation",
+            "subTask": "text",
+            "modelType": "pretrained"
+        }
+    },
+    # Add more variations for testing
+]
+
+def run_parser_test(variant):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = Path(tmpdir) / "config.json"
+        config_path.write_text(json.dumps(variant["config"]))
+
+        result = subprocess.run(
+            ["python", "parser.py", str(config_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=base_dir
+        )
+
+        assert result.returncode == 0, f"{variant['name']} failed:\n{result.stderr}"
+        try:
+            output = json.loads(result.stdout.strip())
+        except Exception:
+            raise AssertionError(f"{variant['name']} produced invalid JSON output:\n{result.stdout}")
+
+        out_path = Path(output["generated_path"])
+        assert out_path.exists(), f"{variant['name']} did not create output file"
+
+        content = out_path.read_text()
+        assert "import" in content or "def" in content, f"{variant['name']} generated empty or invalid content"
+
+        print(f"{variant['name']}: OK")
+
+if __name__ == "__main__":
+    for variant in config_variants:
+        run_parser_test(variant)
+
+
+### ./aliases.py ###
+
+
+OPTIMIZER_ALIASES = {
+    "adam": "Adam",
+    "adamw": "AdamW",
+    "sgd": "SGD",
+    "nadam": "NAdam",
+    "radam": "RAdam",
+    "lion": "Lion",  
+    "rmsprop": "RMSprop",
+    "adagrad": "Adagrad",
+}
+
+LOSS_ALIASES = {
+    "crossentropy": "CrossEntropyLoss",
+    "focal": "FocalLoss",
+    "dice": "DiceLoss",
+    "mse": "MSELoss",
+    "l1": "L1Loss",
+    "bce": "BCELoss",
+    "bcewithlogits": "BCEWithLogitsLoss"
+}
+
+METRIC_ALIASES = {
+    "accuracy": "Accuracy",
+    "f1": "F1Score",
+    "recall": "Recall",
+    "mae": "MeanAbsoluteError",
+    "mse": "MeanSquaredError",
+    "iou": "JaccardIndex",
+}
+
+### ./configs/__init__.py ###
+
+
+
+
+### ./configs/modelconfig.py ###
+
+
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import Dict, Any, Optional, List
+from .registries.layerreg import LAYER_REGISTRY
+from .registries.modelreg import PRETRAINED_MODEL_REGISTRY
+
+class LayerDefinition(BaseModel):
+    type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("params", mode="before")
+    def apply_layer_defaults(cls, v, info):
+        if v:
+            return v
+        layer_type = info.data.get("type")
+        return LAYER_REGISTRY.get(layer_type, {})
+
+class PretrainedModel(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("params", mode="before")
+    def apply_model_defaults(cls, v, info):
+        if v:
+            return v
+        model_name = info.data.get("name")
+        return PRETRAINED_MODEL_REGISTRY.get(model_name, {})
+
+class ModelConfig(BaseModel):
+    use_pretrained: bool
+    pretrained: Optional[PretrainedModel] = None
+    layers: Optional[List[LayerDefinition]] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def check_exclusivity(cls, values):
+        use_pretrained = values.get("use_pretrained")
+        pretrained = values.get("pretrained")
+        layers = values.get("layers")
+
+        if use_pretrained:
+            if not pretrained:
+                raise ValueError("use_pretrained=True requires a 'pretrained' model.")
+            if layers:
+                raise ValueError("If 'use_pretrained' is True, 'layers' must be None.")
+        else:
+            if not layers:
+                raise ValueError("use_pretrained=False requires 'layers' to be defined.")
+            if pretrained:
+                raise ValueError("If 'use_pretrained' is False, 'pretrained' must be None.")
+        return values
+
+
+### ./configs/preprocessingconfig.py ###
+
+
+from pydantic import BaseModel, Field, field_validator
+from typing import Dict, Any
+from .registries.preprocessingreg import AUDIO_TRANSFORMS, IMAGE_TRANSFORMS, TEXT_TRANSFORMS
+
+TRANSFORM_REGISTRY = {
+    **AUDIO_TRANSFORMS,
+    **IMAGE_TRANSFORMS,
+    **TEXT_TRANSFORMS,
+}
+
+class PreprocessingStep(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("params", mode="before")
+    def apply_defaults(cls, v, info):
+        if v:
+            return v
+        name = info.data.get("name")
+        return TRANSFORM_REGISTRY.get(name, {})
+
+
+### ./configs/registries/layerreg.py ###
+
+
+LAYER_REGISTRY = {
+    "Linear": {"in_features": 128, "out_features": 64, "bias": True},
+    "Bilinear": {"in1_features": 128, "in2_features": 128, "out_features": 64, "bias": True},
+
+    "Conv1d": {"in_channels": 1, "out_channels": 16, "kernel_size": 3, "stride": 1, "padding": 0,
+               "dilation": 1, "groups": 1, "bias": True, "padding_mode": "zeros"},
+    "Conv2d": {"in_channels": 3, "out_channels": 64, "kernel_size": 3, "stride": 1, "padding": 1,
+               "dilation": 1, "groups": 1, "bias": True, "padding_mode": "zeros"},
+    "Conv3d": {"in_channels": 1, "out_channels": 32, "kernel_size": 3, "stride": 1, "padding": 0,
+               "dilation": 1, "groups": 1, "bias": True, "padding_mode": "zeros"},
+
+    "ConvTranspose1d": {"in_channels": 1, "out_channels": 16, "kernel_size": 3, "stride": 1,
+                        "padding": 0, "output_padding": 0, "bias": True},
+    "ConvTranspose2d": {"in_channels": 3, "out_channels": 64, "kernel_size": 3, "stride": 1,
+                        "padding": 1, "output_padding": 0, "bias": True},
+    "ConvTranspose3d": {"in_channels": 1, "out_channels": 32, "kernel_size": 3, "stride": 1,
+                        "padding": 0, "output_padding": 0, "bias": True},
+
+    "MaxPool1d": {"kernel_size": 2, "stride": 2, "padding": 0, "dilation": 1, "ceil_mode": False},
+    "MaxPool2d": {"kernel_size": 2, "stride": 2, "padding": 0, "dilation": 1, "ceil_mode": False},
+    "MaxPool3d": {"kernel_size": 2, "stride": 2, "padding": 0, "dilation": 1, "ceil_mode": False},
+
+    "AvgPool1d": {"kernel_size": 2, "stride": 2, "padding": 0, "dilation": 1,
+                  "ceil_mode": False, "count_include_pad": True},
+    "AvgPool2d": {"kernel_size": 2, "stride": 2, "padding": 0, "dilation": 1,
+                  "ceil_mode": False, "count_include_pad": True},
+    "AvgPool3d": {"kernel_size": 2, "stride": 2, "padding": 0, "dilation": 1,
+                  "ceil_mode": False, "count_include_pad": True},
+
+    "BatchNorm1d": {"num_features": 64, "eps": 1e-5, "momentum": 0.1,
+                    "affine": True, "track_running_stats": True},
+    "BatchNorm2d": {"num_features": 64, "eps": 1e-5, "momentum": 0.1,
+                    "affine": True, "track_running_stats": True},
+    "BatchNorm3d": {"num_features": 64, "eps": 1e-5, "momentum": 0.1,
+                    "affine": True, "track_running_stats": True},
+
+    "LayerNorm": {"normalized_shape": 128, "eps": 1e-5, "elementwise_affine": True},
+
+    "Transformer": {"d_model": 512, "nhead": 8, "num_encoder_layers": 6,
+                    "num_decoder_layers": 6, "dim_feedforward": 2048,
+                    "dropout": 0.1, "activation": "relu"},
+
+    "MultiheadAttention": {"embed_dim": 512, "num_heads": 8, "dropout": 0.0,
+                           "bias": True, "add_bias_kv": False},
+
+    "Dropout": {"p": 0.5, "inplace": False},
+    "Dropout1d": {"p": 0.5, "inplace": False},
+    "Dropout2d": {"p": 0.5, "inplace": False},
+    "Dropout3d": {"p": 0.5, "inplace": False},
+
+    "Embedding": {"num_embeddings": 10000, "embedding_dim": 300,
+                  "padding_idx": None, "max_norm": None, "sparse": False},
+
+    "PixelShuffle": {"upscale_factor": 2},
+    "Upsample": {"size": None, "scale_factor": 2.0, "mode": "nearest"},
+
+    "LSTM": {"input_size": 128, "hidden_size": 256, "num_layers": 1,
+             "batch_first": False, "bidirectional": False},
+
+    "Flatten": {"start_dim": 1, "end_dim": -1},
+    "Unfold": {"kernel_size": 3, "stride": 1, "padding": 0, "dilation": 1}
+}
+
+### ./configs/registries/lossreg.py ###
+
+
+LOSS_REGISTRY = {
+    "MSELoss": {"reduction": "mean"},
+    "L1Loss": {"reduction": "mean"},
+    "SmoothL1Loss": {"reduction": "mean", "beta": 1.0},
+    "HuberLoss": {"reduction": "mean", "delta": 1.0},
+    "CrossEntropyLoss": {"reduction": "mean"},
+    "BCELoss": {"reduction": "mean"},
+    "BCEWithLogitsLoss": {"reduction": "mean"},
+    "NLLLoss": {"reduction": "mean"},
+    "MarginRankingLoss": {"reduction": "mean", "margin": 0.0},
+    "TripletMarginLoss": {"margin": 1.0, "p": 2, "eps": 1e-6, "swap": False, "reduction": "mean"},
+    "CosineEmbeddingLoss": {"margin": 0.0, "reduction": "mean"},
+    "MultiMarginLoss": {"p": 1, "margin": 1.0, "reduction": "mean"},
+}
+
+
+### ./configs/registries/metricreg.py ###
+
+
+METRIC_REGISTRY = {
+    "Accuracy": {},
+    "Precision": {},
+    "Recall": {},
+    "F1Score": {},
+    "AUROC": {},
+    "ConfusionMatrix": {},
+    "MeanAbsoluteError": {},
+    "MeanSquaredError": {},
+    "MeanSquaredLogError": {},
+    "R2Score": {},
+    "JaccardIndex": {"task": "binary"},
+    "Dice": {"average": "macro"},
+    "RetrievalMRR": {},
+    "RetrievalNormalizedDCG": {},
+    "CosineSimilarity": {},
+    "ExplainedVariance": {},
+    "SpearmanCorrcoef": {},
+}
+
+
+### ./configs/registries/modelreg.py ###
+
+
+PRETRAINED_MODEL_REGISTRY = {
+    "ResNet18": {"pretrained": True, "num_classes": 1000},
+    "ResNet50": {"pretrained": True, "num_classes": 1000},
+    "EfficientNetB0": {"width_mult": 1.0, "depth_mult": 1.0, "dropout": 0.2},
+    "EfficientNetB7": {"width_mult": 2.0, "depth_mult": 3.1, "dropout": 0.5},
+    "ViT": {"image_size": 224, "patch_size": 16, "num_layers": 12,
+            "num_heads": 12, "hidden_dim": 768},
+
+    "FasterRCNN": {"backbone": "resnet50", "num_classes": 91,
+                   "min_size": 800, "max_size": 1333},
+    "MaskRCNN": {"backbone": "resnet50", "num_classes": 91,
+                 "box_detections_per_img": 100},
+
+    "DeepLabV3": {"backbone": "resnet50", "atrous_rates": (6, 12, 18),
+                  "num_classes": 21},
+
+    "Conformer": {"input_dim": 80, "num_heads": 4, "ffn_dim": 256,
+                  "num_layers": 6, "depthwise_conv_kernel_size": 31,
+                  "dropout": 0.0, "use_group_norm": False, "convolution_first": False},
+
+    "Wave2Letter": {"num_classes": 40, "input_type": "waveform", "num_features": 1},    
+
+    "WaveRNN": {"upsample_scales": [5, 5, 8], "n_classes": 256, "hop_length": 200,
+                "n_res_block": 10, "n_rnn": 512, "n_fc": 512, "kernel_size": 5,
+                "n_freq": 128, "n_hidden": 128, "n_output": 128},
+
+    "GloVe": {"dim": 300, "name": "6B"},
+    "FastText": {"language": "en"},
+
+    "TransformerEncoderDecoder": {"d_model": 512, "nhead": 8,
+                                  "num_encoder_layers": 6, "num_decoder_layers": 6},
+
+    "XLMRoberta": {"num_classes": 2, "dropout": 0.1, "pooler_type": "cls"}
+}
+
+
+### ./configs/registries/optimizerreg.py ###
+
+
+OPTIMIZER_REGISTRY = {
+    "SGD": {"lr": 0.01, "momentum": 0.9, "weight_decay": 0.0, "nesterov": False},
+    "Adam": {"lr": 0.001, "betas": (0.9, 0.999), "eps": 1e-8, "weight_decay": 0.0, "amsgrad": False},
+    "AdamW": {"lr": 0.001, "betas": (0.9, 0.999), "eps": 1e-8, "weight_decay": 0.01},
+    "RMSprop": {"lr": 0.01, "alpha": 0.99, "eps": 1e-8, "momentum": 0.0, "weight_decay": 0.0},
+    "Adagrad": {"lr": 0.01, "lr_decay": 0.0, "weight_decay": 0.0, "eps": 1e-10},
+    "Adadelta": {"lr": 1.0, "rho": 0.9, "eps": 1e-6, "weight_decay": 0.0},
+    "LBFGS": {"lr": 1.0, "max_iter": 20, "max_eval": None, "tolerance_grad": 1e-7, "tolerance_change": 1e-9},
+    "NAdam": {"lr": 0.001, "betas": (0.9, 0.999), "eps": 1e-8, "weight_decay": 0.0, "momentum_decay": 0.004},
+    "RAdam": {"lr": 0.001, "betas": (0.9, 0.999), "eps": 1e-8, "weight_decay": 0.0},
+    "ASGD": {"lr": 0.01, "lambd": 0.0001, "alpha": 0.75, "t0": 1e6, "weight_decay": 0.0},
+}
+
+
+### ./configs/registries/schedulerreg.py ###
+
+
+SCHEDULER_REGISTRY = {
+    "StepLR": {"step_size": 30, "gamma": 0.1},
+    "MultiStepLR": {"milestones": [30, 80], "gamma": 0.1},
+    "ExponentialLR": {"gamma": 0.95},
+    "CosineAnnealingLR": {"T_max": 50, "eta_min": 0},
+    "ReduceLROnPlateau": {"mode": "min", "factor": 0.1, "patience": 10},
+}
+
+
+### ./configs/registries/taskreg.py ###
+
+
+DEFAULTS = {
+    "Image Classification": {
+        "data_format": "imagefolder",
+        "data_type": "folder",
+        "preprocessing": [
+            {"name": "Resize"},
+            {"name": "ToTensor"},
+            {"name": "Normalize"}
+        ]
+    },
+    "Object Detection": {
+        "data_format": "json",
+        "data_type": "folder",
+        "preprocessing": [
+            {"name": "Resize"},
+            {"name": "ToTensor"}
+        ]
+    },
+    "Image Segmentation": {
+        "data_format": "folder",
+        "data_type": "folder",
+        "preprocessing": [
+            {"name": "Resize"},
+            {"name": "ToTensor"}
+        ]
+    },
+    "Image Generation": {
+        "data_format": "imagefolder",
+        "data_type": "folder",
+        "preprocessing": [
+            {"name": "Resize"},
+            {"name": "ToTensor"}
+        ]
+    },
+
+    "Text Classification": {
+        "data_format": "csv",
+        "data_type": "file",
+        "preprocessing": [
+            {"name": "RegexTokenizer"},
+            {"name": "VocabTransform"},
+            {"name": "ToTensor"}
+        ]
+    },
+    "Sentiment Analysis": {
+        "data_format": "csv",
+        "data_type": "file",
+        "preprocessing": [
+            {"name": "RegexTokenizer"},
+            {"name": "VocabTransform"},
+            {"name": "ToTensor"}
+        ]
+    },
+    "Named Entity Recognition": {
+        "data_format": "json",
+        "data_type": "file",
+        "preprocessing": [
+            {"name": "RegexTokenizer"},
+            {"name": "VocabTransform"},
+            {"name": "ToTensor"}
+        ]
+    },
+    "Text Generation": {
+        "data_format": "json",
+        "data_type": "file",
+        "preprocessing": [
+            {"name": "BARTTokenizer"}
+        ]
+    },
+    "Machine Translation": {
+        "data_format": "csv",
+        "data_type": "file",
+        "preprocessing": [
+            {"name": "RegexTokenizer"},
+            {"name": "VocabTransform"},
+            {"name": "ToTensor"}
+        ]
+    },
+    "Text Summarization": {
+        "data_format": "json",
+        "data_type": "file",
+        "preprocessing": [
+            {"name": "BARTTokenizer"}
+        ]
+    },
+
+    "Speech Recognition": {
+        "data_format": "json",
+        "data_type": "folder",
+        "preprocessing": [
+            {"name": "Resample"},
+            {"name": "MelSpectrogram"},
+            {"name": "ToTensor"}
+        ]
+    },
+    "Audio Classification": {
+        "data_format": "csv",
+        "data_type": "folder",
+        "preprocessing": [
+            {"name": "Resample"},
+            {"name": "MFCC"},
+            {"name": "ToTensor"}
+        ]
+    },
+    "Audio Generation": {
+        "data_format": "other",
+        "data_type": "folder",
+        "preprocessing": [
+            {"name": "Resample"},
+            {"name": "ToTensor"}
+        ]
+    },
+    "Voice Conversion": {
+        "data_format": "other",
+        "data_type": "folder",
+        "preprocessing": [
+            {"name": "Resample"},
+            {"name": "MelSpectrogram"},
+            {"name": "ToTensor"}
+        ]
+    }
+}
+
+
+### ./configs/registries/preprocessingreg.py ###
+
+
+AUDIO_TRANSFORMS = {
+    "Speed": {"orig_freq": 16000, "factor": 1.0},
+    "AmplitudeToDB": {"stype": "power", "top_db": None},
+    "Resample": {
+        "orig_freq": 16000, "new_freq": 16000,
+        "resampling_method": "sinc_interp_hann", "lowpass_filter_width": 6,
+        "rolloff": 0.99, "beta": None, "dtype": None
+    },
+    "Fade": {"fade_in_len": 0, "fade_out_len": 0, "fade_shape": "linear"},
+    "Vol": {"gain": 1.0, "gain_type": "amplitude"},
+    "Loudness": {"sample_rate": 16000},
+    "AddNoise": {"snr": 10.0, "lengths": None},
+
+    "Spectrogram": {
+        "n_fft": 400, "win_length": None, "hop_length": None, "pad": 0,
+        "power": 2, "normalized": False, "center": True,
+        "pad_mode": "reflect", "onesided": True
+    },
+    "MelSpectrogram": {
+        "sample_rate": 16000, "n_fft": 400, "n_mels": 128,
+        "f_min": 0.0, "f_max": None, "hop_length": None
+    },
+    "MFCC": {
+        "sample_rate": 16000, "n_mfcc": 40, "dct_type": 2,
+        "norm": "ortho", "log_mels": False
+    },
+    "TimeStretch": {"n_freq": 201, "fixed_rate": None},
+    "FrequencyMasking": {"freq_mask_param": 30, "iid_masks": False},
+    "TimeMasking": {"time_mask_param": 40, "iid_masks": False, "p": 1.0},
+}
+
+TEXT_TRANSFORMS = {
+    "RegexTokenizer": {"patterns_list": r"\w+"},
+    "SentencePieceTokenizer": {"sp_model_path": "model_path.model"},
+    "VocabTransform": {"vocab": []},
+    "ToTensor": {"dtype": "int64"},
+    "Truncate": {"max_seq_len": 128},
+    "PadTransform": {"max_length": 128, "pad_value": 0},
+    "AddToken": {"token": "<CLS>", "begin": True},
+    "BERTTokenizer": {"tokenizer": "facebook/bart-base"},
+    "LabelToIndex": {"label_names": []}
+}
+
+IMAGE_TRANSFORMS = {
+    "Resize": {"size": [224, 224], "interpolation": "bilinear"},
+    "RandomCrop": {"size": [224, 224], "padding": None, "pad_if_needed": False},
+    "RandomHorizontalFlip": {"p": 0.5},
+    "RandomRotation": {"degrees": 15, "interpolation": "NEAREST"},
+    "ColorJitter": {"brightness": 0.4, "contrast": 0.4, "saturation": 0.4, "hue": 0.1},
+    "Grayscale": {"num_output_channels": 1},
+    "RandomAdjustSharpness": {"sharpness_factor": 2, "p": 0.5},
+    "Normalize": {"mean": [0.5], "std": [0.5]},
+    "ConvertImageDtype": {"dtype": "float32"},
+    "ToTensor": {},
+    "RandomErasing": {"p": 0.5, "scale": [0.02, 0.33], "ratio": [0.3, 3.3], "value": 0},
+    "GaussianBlur": {"kernel_size": 3, "sigma": [0.1, 2.0]},
+}
+
+
+### ./configs/taskconfig.py ###
+
+
+from enum import Enum
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel, field_validator
+
+from .registries.taskreg import DEFAULTS
+
+
+class TaskType(str, Enum):
+    ml = "ml"
+    dl = "dl"
+
+class DataFormat(str, Enum):
+    imagefolder = "imagefolder"
+    csv = "csv"
+    json = "json"
+    other = "other"
+
+class DataType(str, Enum):
+    file = "file"
+    folder = "folder"
+
+class PreprocessingStep(BaseModel):
+    name: str
+    params: dict
+
+
+
+class TaskConfig(BaseModel):
+    task_type: Literal["ml", "dl"]
+    main_task: str
+    sub_task: str
+    data_format: Optional[DataFormat] = None
+    data_type: Optional[DataType] = None
+    preprocessing: Optional[List[PreprocessingStep]] = None
+
+    @field_validator("data_format", "data_type", "preprocessing", mode="before")
+    def set_defaults(cls, v, info):
+        if v is not None:
+            return v
+        values = info.data
+        if values.get("task_type") == "ml":
+            return None
+        sub_task = values.get("sub_task")
+        if not sub_task:
+            return None
+        defaults = DEFAULTS.get(sub_task)
+        if not defaults:
+            return None
+        field_name = info.field_name
+        return defaults.get(field_name)
+
+### ./configs/trainconfig.py ###
+
+
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field, field_validator
+
+from .registries.lossreg import LOSS_REGISTRY
+from .registries.metricreg import METRIC_REGISTRY
+from .registries.optimizerreg import OPTIMIZER_REGISTRY
+from .registries.schedulerreg import SCHEDULER_REGISTRY
+
+
+class OptimizerConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("params", mode="before")
+    def apply_optimizer_defaults(cls, v, info):
+        return v or OPTIMIZER_REGISTRY.get(info.data["name"], {})
+
+
+class SchedulerConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("params", mode="before")
+    def apply_scheduler_defaults(cls, v, info):
+        return v or SCHEDULER_REGISTRY.get(info.data["name"], {})
+
+
+class LossConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("params", mode="before")
+    def apply_loss_defaults(cls, v, info):
+        return v or LOSS_REGISTRY.get(info.data["name"], {})
+
+
+class MetricConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("params", mode="before")
+    def apply_metric_defaults(cls, v, info):
+        return v or METRIC_REGISTRY.get(info.data["name"], {})
+
+
+class EarlyStoppingConfig(BaseModel):
+    enabled: bool
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("params", mode="before")
+    def apply_earlystop_defaults(cls, v, info):
+        return v or {"monitor": "val_loss", "patience": 10, "mode": "min"}
+
+class TrainingConfig(BaseModel):
+    batch_size: int
+    learning_rate: float
+    epochs: int
+    weight_decay: Optional[float] = Field(default=0.0)
+
+    optimizer: Optional[OptimizerConfig] = None
+    scheduler: Optional[SchedulerConfig] = None
+    loss: Optional[LossConfig] = None
+    metrics: Optional[List[MetricConfig]] = None
+    early_stopping: Optional[EarlyStoppingConfig] = None
+
+    @field_validator("optimizer", "scheduler", "loss", "metrics", "early_stopping", mode="before")
+    def inject_defaults(cls, v):
+        return v or None
+
+
+### ./configs/datasetconfig.py ###
+
+
+from pydantic import BaseModel, PrivateAttr
+from typing import Optional, Dict, Literal, Any
+
+TaskType = Literal["Image Processing", "Text Processing", "Audio Processing"]
+SubTaskType = Literal[
+    # Image
+    "Image Classification", "Object Detection", "Image Segmentation", "Image Generation",
+    # Text
+    "Text Classification", "Text Generation", "Machine Translation", "Text Summarization",
+    # Audio
+    "Speech Recognition", "Audio Classification", "Audio Generation", "Voice Conversion"
+]
+
+class DatasetConfig(BaseModel):
+    split_type: Literal["include", "exclude"] = "include"
+    label_type: Literal["folder-name", "file", "csv", "none"] = "folder-name"
+    label_map: Optional[Dict[str, int]] = None
+    return_format: Literal["raw", "dict", "tuple"] = "dict"
+
+    # Text-specific
+    tokenizer_type: Optional[str] = None  
+    tokenizer_params: Optional[Dict[str, Any]] = None  
+
+    # Audio-specific
+    audio_duration: Optional[float] = None 
+
+    # Task flags
+    include_prompt: Optional[bool] = None
+    include_target: Optional[bool] = None
+    text_pair: Optional[bool] = None
+    audio_pair: Optional[bool] = None
+    multi_class: Optional[bool] = None
+    multi_label: Optional[bool] = None
+    binary: Optional[bool] = None
+
+    _note: str = PrivateAttr(default="Tokenization/audio-specific logic not yet fully defined")
+
+class DataloaderConfig(BaseModel):
+    batch_size: int = 32
+    shuffle: bool = True
+    num_workers: int = 4
+    pin_memory: bool = True
+    drop_last: bool = False
+    prefetch_factor: Optional[int] = None  # TEMPORARY
+    persistent_workers: Optional[bool] = None  # TEMPORARY
+
+    _note: str = PrivateAttr(default="Dataloader fine-tuning (e.g., bucketing, custom collate) not yet implemented")
+
+class DataIOConfig(BaseModel):
+    task: TaskType
+    subtask: SubTaskType
+    dataset: DatasetConfig
+    dataloader: DataloaderConfig
+
+
+### ./main.py ###
+
+
+import uvicorn
+def main():
+    uvicorn.run(
+        "server:app",
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+        log_level="info",
+        workers=1,
+        lifespan="on",
+        loop="auto"
+    )
+    
+if __name__ == "__main__":
+    main()
+
+### ./parser.py ###
+
+
+import json
+import argparse
+import os
+from pathlib import Path
+import jinja2
+import isort
+import black
+
+try:
+    from aliases import OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC_ALIASES
+except ImportError:
+	OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC_ALIASES = {},{},{}
+	
+	
+def setup_environment():
+    base = Path(__file__).parent.parent
+    return jinja2.Environment(
+        loader=jinja2.FileSystemLoader(str(base / "templates")),
+        keep_trailing_newline=True,
+        autoescape=False
+    )
+
+env = setup_environment()
+
+TASK_MAP = {
+    "imports": "imports.j2",
+    "models": "models/{task}.j2",
+    "transforms": "data/transforms/{task}.j2",
+    "loaders": "data/loaders/{task}/{subtask}.j2",
+    "custom_model": "models/layers.j2",
+    "optimizer": "train/optimizers.j2",
+    "loss": "train/losses.j2",
+    "metrics": "train/metrics.j2"
+}
+
+DEFAULT_OUTPUT = Path(__file__).parent.parent / "outputs" / "out.py"
+        
+def resolve_template_from_alias(section: str, cfg: dict) -> str:
+    if section == "optimizer":
+        return normalize_name(cfg["optimizer"]["name"], OPTIMIZER_ALIASES)
+    elif section == "loss":
+        return normalize_name(cfg["loss"]["name"], LOSS_ALIASES)
+    elif section == "metric":
+        return normalize_name(cfg["metric"]["name"], METRIC_ALIASES)
+    else:
+        raise ValueError(f"Unsupported alias-resolved section: {section}")
+        
+def normalize_name(name: str, alias_map: dict) -> str:
+    key = name.strip().lower()
+    return alias_map.get(key, name)
+    
+def normalize_config(cfg):
+    opt = cfg.get("optimizer")
+    if opt and "name" in opt:
+        opt["name"] = normalize_name(opt["name"], OPTIMIZER_ALIASES)
+
+    loss = cfg.get("loss")
+    if loss and "name" in loss:
+        loss["name"] = normalize_name(loss["name"], LOSS_ALIASES)
+
+    metric = cfg.get("metric")
+    if metric and "name" in metric:
+        metric["name"] = normalize_name(metric["name"], METRIC_ALIASES)
+        
+def read_config(path):
+    return json.loads(Path(path).read_text())
+
+
+SUBTASK_MAPPING = {
+    "image classification": "classification",
+    "object detection": "object_detection",
+    "image segmentation": "segmentation",
+    "image generation": "generation",
+    "text classification": "classification",
+    "text generation": "generation",
+    "machine translation": "translation",
+    "text summarization": "summarisation",
+    "speech recognition": "recognition",
+    "audio classification": "classification",
+    "audio generation": "generation",
+    "voice conversion": "conversion"
+}
+
+def resolve_name(section, cfg):
+    main_task = cfg["data"]["main_task"].lower()
+    sub_task_original = cfg["data"]["sub_task"].lower()
+
+    TASK_MAPPING = {
+        'image processing': 'image',
+        'text processing': 'text',
+        'audio processing': 'audio',
+        'ml': 'ML'
+    }
+
+    task_dir = TASK_MAPPING.get(main_task)
+    if task_dir is None:
+        raise ValueError(f"No task mapping found for main_task: '{main_task}'")
+
+    subtask_dir = SUBTASK_MAPPING.get(sub_task_original)
+    if subtask_dir is None and section == 'loaders':
+        raise ValueError(f"No subtask mapping for sub_task: '{sub_task_original}'")
+
+    if section == "models" and cfg.get("model", {}).get("modelType") == "custom":
+        return TASK_MAP["custom_model"]
+
+    if section == "loaders":
+        return TASK_MAP[section].format(task=task_dir, subtask=subtask_dir)
+
+    else:
+        return TASK_MAP[section].format(task=task_dir, subtask='')
+
+
+TASK_MAP = {
+    "imports": "imports.j2",
+    "models": "models/{task}.j2",
+    "transforms": "data/transforms/{task}.j2",
+    "loaders": "data/loaders/{task}/{subtask}.j2",
+    "custom_model": "models/layers.j2",
+    "optimizer": "train/optimizers.j2",
+    "loss": "train/losses.j2",
+    "metrics": "train/metrics.j2"
+}
+
+def render_template(name, context):
+    try:
+        tpl = env.get_template(name)
+    except jinja2.exceptions.TemplateNotFound:
+        raise ValueError(f"Template not found: {name}")
+    return tpl.render(config=context)
+
+def assemble(cfg):
+    normalize_config(cfg)
+    parts = []
+
+    imports_template = resolve_name("imports", cfg)
+    parts.append(render_template(imports_template, cfg))
+
+    sections = ["models", "transforms", "loaders"]
+    for sec in sections:
+        template_name = resolve_name(sec, cfg)
+        parts.append(render_template(template_name, cfg))
+
+    static_templates = [
+        "setup.j2",
+        "train/utils.j2",
+        "train/train_loop.j2",
+        "train/eval_loop.j2"
+    ]
+    for template in static_templates:
+        if template in env.list_templates():
+            parts.append(env.get_template(template).render(config=cfg))
+
+    # shared_components = ["train/optimizers.j2", "train/losses.j2", "train/metrics.j2"]
+    # for shared in shared_components:
+    #     parts.append(env.get_template(shared).render(config=cfg))
+
+    if "monitoring" in cfg:
+        parts.append(env.get_template("train/monitoring.j2").render(config=cfg))
+
+    if "runner.j2" in env.list_templates():
+        parts.append(env.get_template("runner.j2").render(config=cfg))
+
+    combined_code = "\n\n".join(parts)
+    return combined_code
+
+
+def write_output(code: str, output_path: Path):
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    # remove duplicates, organize imports 
+    code = isort.code(code)
+    # format code, remove extra newlines
+    mode = black.FileMode(line_length=88)
+    code = black.format_str(code, mode=mode)
+    output_path.write_text(code)
+
+
+def get_output_path(user_path: str = None) -> Path:
+    if user_path:
+        return Path(user_path)
+    path = DEFAULT_OUTPUT
+    if path.exists():
+        idx = 1
+        while True:
+            candidate = path.with_name(f"{path.stem}_{idx}{path.suffix}")
+            if not candidate.exists():
+                return candidate
+            idx += 1
+    return path
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate code from templates.")
+    parser.add_argument("config", help="Path to config JSON")
+    parser.add_argument("--output", help="Optional output path for generated code")
+    args = parser.parse_args()
+    cfg = read_config(args.config)
+    code = assemble(cfg)
+    out_path = get_output_path(args.output)
+    write_output(code, out_path)
+
+    results = {"generated_path": os.path.abspath(out_path)}
+    print(json.dumps(results)) 
+    return results
+
+if __name__ == "__main__":
+    main()
+
+### ./server.py ###
+
+
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, model_validator
+from subprocess import run as subprocess_run, PIPE
+from pathlib import Path
+import tempfile
+import json
+import os
+import sys
+from typing import Any, Dict, List, Literal, Optional
+import shutil
+
+
+from configs.datasetconfig import DataIOConfig
+from configs.taskconfig import TaskConfig
+from configs.preprocessingconfig import PreprocessingStep
+from configs.modelconfig import ModelConfig
+from configs.trainconfig import TrainingConfig
+
+app = FastAPI()
+
+DEFAULT_BASE_PATH = Path(__file__).parent # current directory of this script
+
+
+
+class GenerateDataModel(BaseModel):
+    data: TaskConfig
+    dataloading: DataIOConfig
+    preprocessing: Optional[List[PreprocessingStep]] = Field(
+        None, description="List of preprocessing steps to apply to the data"
+    )
+    model: ModelConfig
+    training: TrainingConfig
+
+
+
+class GeneratePayload(BaseModel):
+    data: GenerateDataModel
+    base_path: str = str(DEFAULT_BASE_PATH)
+
+
+DATASETS_ROOT = Path("/home/haroon/REPOS/backend/dataset")
+
+@app.post("/generate")
+async def generate(payload: GeneratePayload):
+    base_path = Path(payload.base_path)
+    parser_path = base_path / "parser.py"
+    if not parser_path.is_file():
+        return JSONResponse(status_code=400, content={"error": "parser.py not found"})
+
+    with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
+        cfg_dict = payload.data.model_dump()
+
+        dataset_name = cfg_dict["dataloading"]["dataset"].get("name")
+        if not dataset_name:
+            return JSONResponse(status_code=400, content={"error": "Dataset name not provided in 'data.dataloading.dataset.name'"})
+
+        full_root_path = DATASETS_ROOT / dataset_name
+
+        cfg_dict["data"]["root"] = str(full_root_path)
+
+        json.dump(cfg_dict, temp_config)
+        temp_config.flush()
+        temp_config_path = temp_config.name
+
+    try:
+        result = subprocess_run(
+            [sys.executable, str(parser_path), temp_config_path],
+            stdout=PIPE,
+            stderr=PIPE,
+            text=True,
+            cwd=base_path
+        )
+        if result.returncode != 0:
+            return JSONResponse(status_code=500, content={"error": result.stderr})
+
+        parser_output = json.loads(result.stdout.strip())
+        generated_path = Path(parser_output["generated_path"])
+
+        pyproject_src = base_path.parent / "pyproject.toml"
+        if pyproject_src.is_file():
+            shutil.copy(pyproject_src, generated_path.parent / "pyproject.toml")
+
+        dest_config_path = generated_path.parent / "config.json"
+        shutil.copy(temp_config_path, dest_config_path)
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+    finally:
+        os.unlink(temp_config_path)
+
+    return JSONResponse(status_code=200, content={"generated_path": str(generated_path)})
+
+
+
+class RunPayload(BaseModel):
+    base_path: Optional[str] | None = None  #defaults to current directory
+
+@app.post("/run")
+async def run(payload: RunPayload):
+    base_path = Path(payload.base_path) if payload.base_path and payload.base_path.lower() != "string" else DEFAULT_BASE_PATH
+    outputs_path = base_path if base_path.name == "outputs" else base_path.parent / "outputs"
+
+    if not outputs_path.is_dir():
+        return JSONResponse(status_code=500, content={"error": f"Outputs directory '{outputs_path}' not found."})
+
+    generated_files = sorted(outputs_path.glob("out*.py"), key=os.path.getmtime)
+    if not generated_files:
+        return JSONResponse(status_code=500, content={"error": "No generated outputs found."})
+
+    generated_path = generated_files[-1]
+    result_json_path = outputs_path / "results.json"
+
+    venv_path = outputs_path / ".venv"
+    pip = venv_path / "bin" / "pip"
+    uv = venv_path / "bin" / "uv"
+    python_exec = venv_path / "bin" / "python"
+
+    try:
+        # setup virtual environment
+        try:
+            subprocess_run([pip, "install", "uv"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
+        except Exception:
+            subprocess_run(["brew", "install", "uv"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
+        except Exception:
+            raise RuntimeError("Failed to install uv. install pip or brew first.")
+        subprocess_run([uv, "sync"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
+        
+        exec_result = subprocess_run(
+            [python_exec, str(generated_path)],
+            stdout=PIPE,
+            stderr=PIPE,
+            cwd=outputs_path,
+            text=True
+        )
+        if exec_result.returncode != 0:
+            return JSONResponse(status_code=500, content={"error": exec_result.stderr})
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": f"Execution failed: {str(e)}"})
+
+    if not result_json_path.is_file():
+        return JSONResponse(status_code=500, content={"error": "results.json not found"})
+
+    results = json.loads(result_json_path.read_text())
+
+    return JSONResponse(content=results)
+
+
+
+class InferPayload(BaseModel):
+    base_path: Optional[str] = None
+    task: Literal["image", "text", "audio"] = Field(..., description="Type of task for inference")
+    subtask: Literal[
+        "Image Classification", "Object Detection", "Image Segmentation", "Image Generation",
+        "Text Classification", "Text Generation", "Machine Translation", "Text Summarization",
+        "Speech Recognition", "Audio Classification", "Audio Generation", "Voice Conversion"
+    ] = Field(..., description="Subtask for inference")
+    
+    model_path: str = Field(..., description="Path to the model file")
+    model_load_method: Literal["torch.load", "onnx"] = Field(..., description="How to load the model")
+
+    input_data: List[str] = Field(..., description="List of input data for inference")
+    input_size: Optional[int] = None
+    output_type: Literal["json", "text", "image", "audio", "multitype"] = "json"
+
+    tokenizer_type: Optional[str] = None
+    tokenizer_params: Optional[Dict[str, Any]] = None
+    return_logits: Optional[bool] = False
+    return_probs: Optional[bool] = False
+    top_k: Optional[int] = None
+    temperature: Optional[float] = None
+    max_length: Optional[int] = None
+
+    _note: Optional[str] = "Inference pipeline defaults may not cover all edge cases yet"
+
+    @model_validator(mode="after")
+    def set_task_defaults(self) -> "InferPayload":
+        if self.task == "text":
+            if self.subtask in {"Text Generation", "Machine Translation", "Text Summarization"}:
+                if not self.tokenizer_type:
+                    raise ValueError("tokenizer_type must be set for text generation tasks")
+                if self.max_length is None:
+                    self.max_length = 128
+                if self.temperature is None:
+                    self.temperature = 1.0
+
+        if self.task == "audio":
+            if self.subtask in {"Speech Recognition", "Audio Generation", "Voice Conversion"}:
+                if self.input_size is None:
+                    self.input_size = 16000
+
+        if self.task == "image" and self.input_size is None:
+            self.input_size = 224
+
+        return self
+
+@app.post("/generate_inference")
+async def generate_inference(payload: InferPayload):
+    base_path = Path(payload.base_path) if payload.base_path else DEFAULT_BASE_PATH
+    infer_script_path = base_path / "outputs" /"infer.py"
+    if not infer_script_path.is_file():
+        return JSONResponse(status_code=400, content={"error": "infer.py not found"})
+
+    try:
+        result = subprocess_run(
+            [sys.executable, str(infer_script_path)],
+            input=payload.json(),
+            stdout=PIPE,
+            stderr=PIPE,
+            text=True,
+            cwd=base_path
+        )
+        if result.returncode != 0:
+            return JSONResponse(status_code=500, content={"error": result.stderr})
+
+        output = json.loads(result.stdout.strip())
+        return JSONResponse(content=output)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/run_inference")
+async def inference(payload: InferPayload):
+    base_path = Path(payload.base_path) if payload.base_path else DEFAULT_BASE_PATH
+    infer_script_path = base_path / "infer.py"
+    if not infer_script_path.is_file():
+        return JSONResponse(status_code=400, content={"error": "infer.py not found"})
+    try:
+        result = subprocess_run(
+            [sys.executable, str(infer_script_path)],
+            input=payload.json(),
+            stdout=PIPE,
+            stderr=PIPE,
+            text=True,
+            cwd=base_path
+        )
+        if result.returncode != 0:
+            return JSONResponse(status_code=500, content={"error": result.stderr})
+
+        output = json.loads(result.stdout.strip())
+        return JSONResponse(content=output)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+    

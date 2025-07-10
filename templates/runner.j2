@@ -1,10 +1,14 @@
 import json
+from pathlib import Path
 
-def main(config):
+def main():
+    with open("config.json") as f:
+        config = json.load(f)
+
     set_seed(config)
     device = get_device(config)
 
-    root = config["data"]["root"]
+    root = config["data"].get("root", ".")
     batch_size = config["training"]["batch_size"]
 
     train_loader = get_loader(root=root, batch_size=batch_size, split="train")
@@ -13,9 +17,8 @@ def main(config):
     {% if config.model.use_pretrained %}
     model = models.{{ config.model.pretrained.name }}(pretrained=True)
     {% else %}
-    model = CustomModel(...)
+    model = CustomModel(config)
     {% endif %}
-
     model.to(device)
 
     criterion = get_criterion(config)
@@ -36,11 +39,12 @@ def main(config):
     {% endif %}
     {% endfor %}
 
-    criterion = get_criterion(config)
-    optimizer = get_optimizer(model, config)
-
     epochs = config["training"]["epochs"]
-    history = {"epochs": epochs, "training": []}
+
+    history = {
+        "epochs": epochs,
+        "training": []
+    }
 
     for epoch in range(epochs):
         train_loss, train_acc = train_one_epoch(
@@ -48,22 +52,26 @@ def main(config):
         )
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
 
-        epoch_details = {
+        epoch_log = {
             "epoch": epoch + 1,
             "train_loss": train_loss,
             "train_acc": train_acc,
             "val_loss": val_loss,
             "val_acc": val_acc
         }
-        history["training"].append(epoch_details)
+
+        history["training"].append(epoch_log)
 
         print(
-            f"Epoch {epoch+1}/{epochs}: "
+            f"Epoch {epoch + 1}/{epochs}: "
             f"Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f}, "
             f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}"
         )
 
-    # save final results explicitly clearly 
-    import json
+    # Explicitly save results at the end of run
     Path("results.json").write_text(json.dumps(history, indent=4))
-    print(f"Results explicitly saved at: {Path('results.json').resolve()}") 
+
+    print("Training completed. Results are explicitly saved in 'results.json'.")
+
+if __name__ == "__main__":
+    main()

@@ -18,11 +18,11 @@ class DatasetConfig(BaseModel):
     return_format: Literal["raw", "dict", "tuple"] = "dict"
 
     # Text-specific
-    tokenizer_type: Optional[str] = None  # e.g., "AutoTokenizer"
-    tokenizer_params: Optional[Dict[str, Any]] = None  # TEMPORARY
+    tokenizer_type: Optional[str] = None  
+    tokenizer_params: Optional[Dict[str, Any]] = None  
 
     # Audio-specific
-    audio_duration: Optional[float] = None  # clip or pad to fixed length (seconds)
+    audio_duration: Optional[float] = None 
 
     # Task flags
     include_prompt: Optional[bool] = None
