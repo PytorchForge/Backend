@@ -1,17 +1,32 @@
 import json
 import argparse
-import os
 from pathlib import Path
 import jinja2
 import isort
 import black
 
-try:
-    from aliases import OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC_ALIASES
-except ImportError:
-	OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC_ALIASES = {},{},{}
-	
-	
+from configs.registries import (
+    optimizerreg,
+    lossreg,
+    metricreg,
+    layerreg,
+    modelreg,
+    aliasreg
+)
+from configs.registries.preprocessingreg import (
+    AUDIO_TRANSFORMS,
+    IMAGE_TRANSFORMS,
+    TEXT_TRANSFORMS
+)
+
+REGISTRY_MAP = {
+    "optimizers": optimizerreg.OPTIMIZER_REGISTRY,
+    "losses": lossreg.LOSS_REGISTRY,
+    "metrics": metricreg.METRIC_REGISTRY,
+    "layers": layerreg.LAYER_REGISTRY,
+    "models": modelreg.PRETRAINED_MODEL_REGISTRY,
+}
+
 def setup_environment():
     base = Path(__file__).parent.parent
     return jinja2.Environment(
@@ -34,112 +49,104 @@ TASK_MAP = {
 }
 
 DEFAULT_OUTPUT = Path(__file__).parent.parent / "outputs" / "out.py"
-        
-def resolve_template_from_alias(section: str, cfg: dict) -> str:
-    if section == "optimizer":
-        return normalize_name(cfg["optimizer"]["name"], OPTIMIZER_ALIASES)
-    elif section == "loss":
-        return normalize_name(cfg["loss"]["name"], LOSS_ALIASES)
-    elif section == "metric":
-        return normalize_name(cfg["metric"]["name"], METRIC_ALIASES)
+
+def resolve_backend_name(category: str, ui_name: str):
+    return aliasreg.UI_ALIASES.get(category, {}).get(ui_name.lower(), ui_name)
+
+def inject_registry_defaults(category: str, backend_name: str, current_params: dict):
+    defaults = REGISTRY_MAP.get(category, {}).get(backend_name, {})
+    for param, default in defaults.items():
+        current_params.setdefault(param, default)
+
+def normalize_training_config(training_config: dict):
+    for key in ["optimizer", "loss"]:
+        if training_config.get(key):
+            current = training_config[key]
+            backend_name = resolve_backend_name(f"{key}s", current["name"])
+            current["name"] = backend_name
+            current.setdefault("params", {})
+            inject_registry_defaults(f"{key}s", backend_name, current["params"])
+
+    for metric in training_config.get("metrics", []):
+        backend_metric_name = resolve_backend_name("metrics", metric["name"])
+        metric["name"] = backend_metric_name
+        metric.setdefault("params", {})
+        inject_registry_defaults("metrics", backend_metric_name, metric["params"])
+
+def normalize_model_config(model_cfg: dict):
+    if model_cfg.get("use_pretrained") and model_cfg.get("pretrained"):
+        ui_name = model_cfg["pretrained"]["name"]
+        backend_name = resolve_backend_name("models", ui_name)
+        model_cfg["pretrained"]["name"] = backend_name
+        model_cfg["pretrained"].setdefault("params", {})
+        inject_registry_defaults("models", backend_name, model_cfg["pretrained"]["params"])
+
+    elif model_cfg.get("layers"):
+        for layer in model_cfg["layers"]:
+            ui_name = layer["type"]
+            backend_name = resolve_backend_name("layers", ui_name)
+            layer["type"] = backend_name
+            layer.setdefault("params", {})
+            inject_registry_defaults("layers", backend_name, layer["params"])
+
+def normalize_data_config(data_cfg: dict):
+    sub_task_ui = data_cfg.get("sub_task")
+    data_format_ui = data_cfg.get("data_format")
+
+    data_cfg["sub_task"] = resolve_backend_name("subtasks", sub_task_ui)
+    data_cfg["data_format"] = resolve_backend_name("data_formats", data_format_ui)
+
+def normalize_preprocessing(preprocessing_steps: list, main_task: str):
+    task_key = main_task.strip().lower()
+
+    if task_key in ["audio processing", "audio"]:
+        registry = AUDIO_TRANSFORMS
+    elif task_key in ["text processing", "text"]:
+        registry = TEXT_TRANSFORMS
+    elif task_key in ["image processing", "image"]:
+        registry = IMAGE_TRANSFORMS
     else:
-        raise ValueError(f"Unsupported alias-resolved section: {section}")
+        raise ValueError(f"No transforms registry found for main_task: {main_task}")
 
+    for step in preprocessing_steps:
+        ui_name = step["name"]
+        backend_name = resolve_backend_name("transforms", ui_name)
+        step["name"] = backend_name
+        step.setdefault("params", {})
+        inject_defaults_from_registry(step["params"], registry, backend_name)
 
-UI_TO_BACKEND_NAME_MAP = {
-    "vit": "ViT",
-    "visiontransformer": "ViT",
-    "plain-text": "csv",
-    "wav": "audio",
-    "mp3": "audio",
-    "flac": "audio",
-    "pickle": "other",
-    "pytorch-tensor": "other",
-    "image-segmentation": "segmentation",
-    "object-detection": "object_detection"
-}
+def inject_defaults_from_registry(params: dict, registry: dict, backend_name: str):
+    defaults = registry.get(backend_name)
+    if defaults is None:
+        raise ValueError(f"No defaults found in registry for transform: {backend_name}")
+    for param, default in defaults.items():
+        params.setdefault(param, default)
 
-def normalize_name(name: str, alias_map: dict) -> str:
-    key = name.strip().lower()
-    key = UI_TO_BACKEND_NAME_MAP.get(key, key)  # Add this line
-    return alias_map.get(key, name)
+def normalize_config(cfg: dict):
+    main_task = cfg.get("data", {}).get("main_task", "")
+    normalize_data_config(cfg.get("data", {}))
+    normalize_training_config(cfg.get("training", {}))
+    normalize_model_config(cfg.get("model", {}))
     
-def normalize_config(cfg):
-    data_cfg = cfg.get("data", {})
+    if preprocessing_cfg := cfg.get("preprocessing"):
+        normalize_preprocessing(preprocessing_cfg, main_task)
 
-    sub_task_ui = data_cfg.get("sub_task", "")
-    cfg["data"]["sub_task"] = UI_TO_BACKEND_NAME_MAP.get(sub_task_ui.lower(), sub_task_ui)
-
-    opt_cfg = cfg.get("training", {}).get("optimizer", {})
-    if opt_cfg and "name" in opt_cfg:
-        opt_cfg["name"] = normalize_name(opt_cfg["name"], OPTIMIZER_ALIASES)
-
-    loss_cfg = cfg.get("training", {}).get("loss", {})
-    if loss_cfg := cfg.get("training", {}).get("loss"):
-        loss_cfg["name"] = normalize_name(loss_cfg["name"], LOSS_ALIASES)
-
-    metric_cfgs = cfg.get("training", {}).get("metrics", [])
-    for metric_cfg in metric_cfgs:
-        metric_cfg["name"] = normalize_name(metric_cfg["name"], METRIC_ALIASES)
-        
 def read_config(path):
     return json.loads(Path(path).read_text())
 
+def resolve_template(section, cfg):
+    task_dir = cfg["data"]["main_task"].lower().split()[0]
+    subtask_dir = cfg["data"]["sub_task"].lower()
 
-SUBTASK_MAPPING = {
-    "image classification": "classification",
-    "object detection": "object_detection",
-    "image segmentation": "segmentation",
-    "image generation": "generation",
-    "text classification": "classification",
-    "text generation": "generation",
-    "machine translation": "translation",
-    "text summarization": "summarisation",
-    "speech recognition": "recognition",
-    "audio classification": "classification",
-    "audio generation": "generation",
-    "voice conversion": "conversion"
-}
-
-def resolve_name(section, cfg):
-    main_task = cfg["data"]["main_task"].lower()
-    sub_task_original = cfg["data"]["sub_task"].lower()
-
-    TASK_MAPPING = {
-        'image processing': 'image',
-        'text processing': 'text',
-        'audio processing': 'audio',
-        'ml': 'ML'
-    }
-
-    task_dir = TASK_MAPPING.get(main_task)
-    if task_dir is None:
-        raise ValueError(f"No task mapping found for main_task: '{main_task}'")
-
-    subtask_dir = SUBTASK_MAPPING.get(sub_task_original)
-    if subtask_dir is None and section == 'loaders':
-        raise ValueError(f"No subtask mapping for sub_task: '{sub_task_original}'")
+    subtask_dir = resolve_backend_name("subtasks", subtask_dir)
 
     if section == "models" and cfg.get("model", {}).get("modelType") == "custom":
         return TASK_MAP["custom_model"]
-
+    
     if section == "loaders":
         return TASK_MAP[section].format(task=task_dir, subtask=subtask_dir)
 
-    else:
-        return TASK_MAP[section].format(task=task_dir, subtask='')
-
-
-TASK_MAP = {
-    "imports": "imports.j2",
-    "models": "models/{task}.j2",
-    "transforms": "data/transforms/{task}.j2",
-    "loaders": "data/loaders/{task}/{subtask}.j2",
-    "custom_model": "models/layers.j2",
-    "optimizer": "train/optimizers.j2",
-    "loss": "train/losses.j2",
-    "metrics": "train/metrics.j2"
-}
+    return TASK_MAP[section].format(task=task_dir)
 
 def render_template(name, context):
     try:
@@ -150,14 +157,14 @@ def render_template(name, context):
 
 def assemble(cfg):
     normalize_config(cfg)
-    parts = []
 
-    imports_template = resolve_name("imports", cfg)
+    parts = []
+    imports_template = resolve_template("imports", cfg)
     parts.append(render_template(imports_template, cfg))
 
     sections = ["models", "transforms", "loaders"]
     for sec in sections:
-        template_name = resolve_name(sec, cfg)
+        template_name = resolve_template(sec, cfg)
         parts.append(render_template(template_name, cfg))
 
     static_templates = [
@@ -170,29 +177,20 @@ def assemble(cfg):
         if template in env.list_templates():
             parts.append(env.get_template(template).render(config=cfg))
 
-    # shared_components = ["train/optimizers.j2", "train/losses.j2", "train/metrics.j2"]
-    # for shared in shared_components:
-    #     parts.append(env.get_template(shared).render(config=cfg))
-
-    if "monitoring" in cfg:
+    if "monitoring.j2" in env.list_templates():
         parts.append(env.get_template("train/monitoring.j2").render(config=cfg))
 
     if "runner.j2" in env.list_templates():
         parts.append(env.get_template("runner.j2").render(config=cfg))
 
-    combined_code = "\n\n".join(parts)
-    return combined_code
-
+    return "\n\n".join(parts)
 
 def write_output(code: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    # remove duplicates, organize imports 
     code = isort.code(code)
-    # format code, remove extra newlines
     mode = black.FileMode(line_length=88)
     code = black.format_str(code, mode=mode)
     output_path.write_text(code)
-
 
 def get_output_path(user_path: str = None) -> Path:
     if user_path:
@@ -212,14 +210,14 @@ def main():
     parser.add_argument("config", help="Path to config JSON")
     parser.add_argument("--output", help="Optional output path for generated code")
     args = parser.parse_args()
+
     cfg = read_config(args.config)
     code = assemble(cfg)
     out_path = get_output_path(args.output)
     write_output(code, out_path)
 
-    results = {"generated_path": os.path.abspath(out_path)}
-    print(json.dumps(results)) 
-    return results
+    results = {"generated_path": str(out_path.resolve())}
+    print(json.dumps(results))
 
 if __name__ == "__main__":
     main()

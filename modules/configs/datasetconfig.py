@@ -12,6 +12,7 @@ SubTaskType = Literal[
 ]
 
 class DatasetConfig(BaseModel):
+    name:str = "default_dataset"
     split_type: Literal["include", "exclude"] = "include"
     label_type: Literal["folder-name", "file", "csv", "none"] = "folder-name"
     label_map: Optional[Dict[str, int]] = None
