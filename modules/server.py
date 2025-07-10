@@ -44,12 +44,12 @@ async def generate(payload: GeneratePayload):
     parser_path = base_path / "parser.py"
     if not parser_path.is_file():
         return JSONResponse(status_code=400, content={"error": "parser.py not found"})
-
+  
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
-        json.dump(payload.data, temp_config)
+        json.dump(payload.data.model_dump(), temp_config) 
         temp_config.flush()
         temp_config_path = temp_config.name
-
+  
     try:
         result = subprocess_run(
             [sys.executable, str(parser_path), temp_config_path],
@@ -60,15 +60,15 @@ async def generate(payload: GeneratePayload):
         )
         if result.returncode != 0:
             return JSONResponse(status_code=500, content={"error": result.stderr})
-
+  
         parser_output = json.loads(result.stdout.strip())
         generated_path = parser_output["generated_path"]
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
     finally:
         os.unlink(temp_config_path)
-
-    return FileResponse(generated_path, filename=Path(generated_path).name)
+  
+    return JSONResponse(status_code=200, content={"generated_path": generated_path})
 
 
 

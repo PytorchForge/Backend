@@ -65,13 +65,61 @@ def normalize_config(cfg):
 def read_config(path):
     return json.loads(Path(path).read_text())
 
+
+SUBTASK_MAPPING = {
+    "image classification": "classification",
+    "object detection": "object_detection",
+    "image segmentation": "segmentation",
+    "image generation": "generation",
+    "text classification": "classification",
+    "text generation": "generation",
+    "machine translation": "translation",
+    "text summarization": "summarisation",
+    "speech recognition": "recognition",
+    "audio classification": "classification",
+    "audio generation": "generation",
+    "voice conversion": "conversion"
+}
+
 def resolve_name(section, cfg):
-    if section == "models" and cfg.get("modelType") == "custom":
+    main_task = cfg["data"]["main_task"].lower()
+    sub_task_original = cfg["data"]["sub_task"].lower()
+
+    TASK_MAPPING = {
+        'image processing': 'image',
+        'text processing': 'text',
+        'audio processing': 'audio',
+        'ml': 'ML'
+    }
+
+    task_dir = TASK_MAPPING.get(main_task)
+    if task_dir is None:
+        raise ValueError(f"No task mapping found for main_task: '{main_task}'")
+
+    subtask_dir = SUBTASK_MAPPING.get(sub_task_original)
+    if subtask_dir is None and section == 'loaders':
+        raise ValueError(f"No subtask mapping for sub_task: '{sub_task_original}'")
+
+    if section == "models" and cfg.get("model", {}).get("modelType") == "custom":
         return TASK_MAP["custom_model"]
-    return TASK_MAP[section].format(
-        task=cfg["mainTask"].lower(),
-        subtask=cfg["subTask"].lower()
-    )
+
+    if section == "loaders":
+        return TASK_MAP[section].format(task=task_dir, subtask=subtask_dir)
+
+    else:
+        return TASK_MAP[section].format(task=task_dir, subtask='')
+
+
+TASK_MAP = {
+    "imports": "imports.j2",
+    "models": "models/{task}.j2",
+    "transforms": "data/transforms/{task}.j2",
+    "loaders": "data/loaders/{task}/{subtask}.j2",
+    "custom_model": "models/layers.j2",
+    "optimizer": "train/optimizers.j2",
+    "loss": "train/losses.j2",
+    "metrics": "train/metrics.j2"
+}
 
 def render_template(name, context):
     try:
@@ -92,9 +140,12 @@ def assemble(cfg):
     for tpl in static:
         if tpl in env.loader.list_templates():
             parts.append(env.get_template(tpl).render(config=cfg) + "\n\n")
-    for shared in ["train/optimizers.j2", "train/losses.j2", "train/metrics.j2", "train/monitoring.j2"]:
-        if shared in env.loader.list_templates():
-            parts.append(env.get_template(shared).render(config=cfg) + "\n\n")
+    for shared in ["train/optimizers.j2", "train/losses.j2", "train/metrics.j2"]:
+        parts.append(env.get_template(shared).render(config=cfg) + "\n\n")
+
+    if "monitoring" in cfg:
+        parts.append(env.get_template("train/monitoring.j2").render(config=cfg) + "\n\n")
+        
     return "".join(parts)
 
 def write_output(code: str, output_path: Path):
