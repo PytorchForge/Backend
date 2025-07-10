@@ -44,23 +44,43 @@ def resolve_template_from_alias(section: str, cfg: dict) -> str:
         return normalize_name(cfg["metric"]["name"], METRIC_ALIASES)
     else:
         raise ValueError(f"Unsupported alias-resolved section: {section}")
-        
+
+
+UI_TO_BACKEND_NAME_MAP = {
+    "vit": "ViT",
+    "visiontransformer": "ViT",
+    "plain-text": "csv",
+    "wav": "audio",
+    "mp3": "audio",
+    "flac": "audio",
+    "pickle": "other",
+    "pytorch-tensor": "other",
+    "image-segmentation": "segmentation",
+    "object-detection": "object_detection"
+}
+
 def normalize_name(name: str, alias_map: dict) -> str:
     key = name.strip().lower()
+    key = UI_TO_BACKEND_NAME_MAP.get(key, key)  # Add this line
     return alias_map.get(key, name)
     
 def normalize_config(cfg):
-    opt = cfg.get("optimizer")
-    if opt and "name" in opt:
-        opt["name"] = normalize_name(opt["name"], OPTIMIZER_ALIASES)
+    data_cfg = cfg.get("data", {})
 
-    loss = cfg.get("loss")
-    if loss and "name" in loss:
-        loss["name"] = normalize_name(loss["name"], LOSS_ALIASES)
+    sub_task_ui = data_cfg.get("sub_task", "")
+    cfg["data"]["sub_task"] = UI_TO_BACKEND_NAME_MAP.get(sub_task_ui.lower(), sub_task_ui)
 
-    metric = cfg.get("metric")
-    if metric and "name" in metric:
-        metric["name"] = normalize_name(metric["name"], METRIC_ALIASES)
+    opt_cfg = cfg.get("training", {}).get("optimizer", {})
+    if opt_cfg and "name" in opt_cfg:
+        opt_cfg["name"] = normalize_name(opt_cfg["name"], OPTIMIZER_ALIASES)
+
+    loss_cfg = cfg.get("training", {}).get("loss", {})
+    if loss_cfg := cfg.get("training", {}).get("loss"):
+        loss_cfg["name"] = normalize_name(loss_cfg["name"], LOSS_ALIASES)
+
+    metric_cfgs = cfg.get("training", {}).get("metrics", [])
+    for metric_cfg in metric_cfgs:
+        metric_cfg["name"] = normalize_name(metric_cfg["name"], METRIC_ALIASES)
         
 def read_config(path):
     return json.loads(Path(path).read_text())

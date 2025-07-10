@@ -17,7 +17,7 @@ AUDIO_TRANSFORMS = {
         "pad_mode": "reflect", "onesided": True
     },
     "MelSpectrogram": {
-        "sample_rate": 16000, "n_fft": 400, "n_mels": 128,
+        "sample_rate": 16000, "n_fft": 400, "n_mels": 120,
         "f_min": 0.0, "f_max": None, "hop_length": None
     },
     "MFCC": {
