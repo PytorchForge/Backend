@@ -1,6 +1,5 @@
 import random
 from pathlib import Path
-
 import numpy as np
 import torch
 
@@ -11,27 +10,19 @@ from torchvision import transforms
 
 from torch.utils.data import DataLoader, Dataset
 
-{# Model imports clearly #}
 {% if config.model.use_pretrained %}
 from torchvision import models
-{% set nn_imported = False %}
-{% else %}
-import torch.nn as nn
-{% set nn_imported = True %}
+from torchvision import transforms 
 {% endif %}
 
-{% if config.training.loss and not nn_imported %}
 import torch.nn as nn
-{% endif %}
-import torch.nn as nn
-{% endif %}
+
+import torch.optim as optim
 
 {% if config.training.metrics %}
 import torchmetrics
 {% endif %}
 
-{# Additional conditional imports based on main_task and sub_task #}
-{% if config.data.main_task %}
 {% set main_task = config.data.main_task.lower() %}
 {% if "audio" in main_task %}
 import torchaudio
@@ -40,17 +31,18 @@ import torchaudio.transforms as audio_transforms
 
 {% if "text" in main_task %}
 from torchtext.transforms import ToTensor
+from transformers import AutoTokenizer
 {% endif %}
 
-{% if "text generation" == config.data.sub_task.lower() %}
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+{% if config.data.sub_task.lower() == "text generation" %}
+from transformers import AutoModelForSeq2SeqLM
 from torchmetrics.text import BLEUScore
 {% endif %}
 
-{% if "speech recognition" == config.data.sub_task.lower() %}
+{% if config.data.sub_task.lower() == "speech recognition" %}
 import torchaudio.functional as F
 {% endif %}
 
-{% if "image segmentation" == config.data.sub_task.lower() %}
+{% if config.data.sub_task.lower() == "image segmentation" %}
 import segmentation_models_pytorch as smp
 {% endif %}

@@ -1,7 +1,4 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer
-from pathlib import Path
+
 
 class TextSummarizationDataset(Dataset):
     def __init__(self, root, split='{{ split | default("train") }}', tokenizer_name='{{ tokenizer_name | default("bert-base-uncased") }}', return_format='{{ return_format | default("dict") }}', max_length={{ max_length | default(512) }}, padding='{{ padding | default("max_length") }}', add_special_tokens={{ add_special_tokens | default("True") }}, return_attn_masks={{ return_attn_masks | default("True") }}, truncation='{{ truncation | default("right") }}', use_fast={{ use_fast | default("True") }}):

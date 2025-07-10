@@ -1,15 +1,12 @@
-{%- raw -%}
 def evaluate(model, loader, criterion, device):
     model.eval()
     total_loss = 0
     correct = 0
     with torch.no_grad():
         for batch in loader:
-            inputs, targets = batch
-            inputs, targets = inputs.to(device), targets.to(device)
+            inputs, targets = batch["image"].to(device), batch["label"].to(device)
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             total_loss += loss.item()
             correct += (outputs.argmax(dim=1) == targets).sum().item()
     return total_loss / len(loader), correct / len(loader.dataset)
-{%- endraw -%}

@@ -1,7 +1,4 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer
-from pathlib import Path
+
 
 class TextGenerationDataset(Dataset):
     def __init__(self, root, split='{{ split | default("train") }}', tokenizer_name='{{ tokenizer_name | default("gpt2") }}', return_format='{{ return_format | default("dict") }}', max_length={{ max_length | default(512) }}, padding='{{ padding | default("max_length") }}', add_special_tokens={{ add_special_tokens | default("True") }}, return_attn_masks={{ return_attn_masks | default("True") }}, truncation='{{ truncation | default("right") }}', text_pair={{ text_pair | default("False") }}, include_prompt={{ include_prompt | default("True") }}, include_target={{ include_target | default("True") }}, use_fast={{ use_fast | default("True") }}):

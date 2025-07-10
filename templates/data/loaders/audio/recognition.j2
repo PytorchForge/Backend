@@ -1,7 +1,4 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
-import torchaudio
-from pathlib import Path
+
 
 class AudioRecognitionDataset(Dataset):
     def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, return_format='{{ return_format | default("dict") }}'):

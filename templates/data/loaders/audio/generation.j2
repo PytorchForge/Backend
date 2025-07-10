@@ -1,7 +1,4 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
-import torchaudio
-from pathlib import Path
+
 
 class AudioGenerationDataset(Dataset):
     def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, include_prompt={{ include_prompt | default("True") }}, include_target={{ include_target | default("True") }}, audio_pair={{ audio_pair | default("False") }}, text_pair={{ text_pair | default("False") }}, return_format='{{ return_format | default("dict") }}'):

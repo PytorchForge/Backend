@@ -1,8 +1,3 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-from PIL import Image
-from pathlib import Path
 
 class ImageClassificationDataset(Dataset):
     def __init__(self, root, split='{{ split | default("train") }}', label_type='{{ label_type | default("folder-name") }}', label_map={{ label_map | default("None") }}, return_format='{{ return_format | default("dict") }}', split_type='{{ split_type | default("include") }}'):

@@ -131,28 +131,47 @@ def render_template(name, context):
 def assemble(cfg):
     normalize_config(cfg)
     parts = []
-    imp_tpl = resolve_name("imports", cfg)
-    parts.append(render_template(imp_tpl, cfg) + "\n\n")
-    for sec in ["models", "transforms", "loaders"]:
-        tpl_name = resolve_name(sec, cfg)
-        parts.append(render_template(tpl_name, cfg) + "\n\n")
-    static = ["setup.j2", "train/utils.j2", "train/train_loop.j2", "train/eval_loop.j2"]
-    for tpl in static:
-        if tpl in env.loader.list_templates():
-            parts.append(env.get_template(tpl).render(config=cfg) + "\n\n")
-    for shared in ["train/optimizers.j2", "train/losses.j2", "train/metrics.j2"]:
-        parts.append(env.get_template(shared).render(config=cfg) + "\n\n")
+
+    imports_template = resolve_name("imports", cfg)
+    parts.append(render_template(imports_template, cfg))
+
+    sections = ["models", "transforms", "loaders"]
+    for sec in sections:
+        template_name = resolve_name(sec, cfg)
+        parts.append(render_template(template_name, cfg))
+
+    static_templates = [
+        "setup.j2",
+        "train/utils.j2",
+        "train/train_loop.j2",
+        "train/eval_loop.j2"
+    ]
+    for template in static_templates:
+        if template in env.list_templates():
+            parts.append(env.get_template(template).render(config=cfg))
+
+    # shared_components = ["train/optimizers.j2", "train/losses.j2", "train/metrics.j2"]
+    # for shared in shared_components:
+    #     parts.append(env.get_template(shared).render(config=cfg))
 
     if "monitoring" in cfg:
-        parts.append(env.get_template("train/monitoring.j2").render(config=cfg) + "\n\n")
-        
-    return "".join(parts)
+        parts.append(env.get_template("train/monitoring.j2").render(config=cfg))
+
+    if "runner.j2" in env.list_templates():
+        parts.append(env.get_template("runner.j2").render(config=cfg))
+
+    combined_code = "\n\n".join(parts)
+    return combined_code
+
 
 def write_output(code: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    sorted_code = isort.code(code)
-    formatted_code = black.format_str(sorted_code, mode=black.FileMode())
-    output_path.write_text(formatted_code)
+    # remove duplicates, organize imports 
+    code = isort.code(code)
+    # format code, remove extra newlines
+    mode = black.FileMode(line_length=88)
+    code = black.format_str(code, mode=mode)
+    output_path.write_text(code)
 
 
 def get_output_path(user_path: str = None) -> Path:

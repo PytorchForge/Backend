@@ -1,9 +1,4 @@
-import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-from PIL import Image
 import json
-from pathlib import Path
 
 class ObjectDetectionDataset(Dataset):
     def __init__(self, root, split='{{ split | default("train") }}', return_format='{{ return_format | default("dict") }}', label_type='file', label_map={{ label_map | default("None") }}, split_type='{{ split_type | default("include") }}'):

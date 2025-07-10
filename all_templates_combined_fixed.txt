@@ -1,0 +1,1494 @@
+
+
+### ./models/layers.j2 ###
+
+
+{% macro Linear(in_features, out_features, bias=True) %}
+    nn.Linear({{ in_features }}, {{ out_features }}, bias={{ bias }})
+{% endmacro %}
+
+{% macro Bilinear(in1_features, in2_features, out_features, bias=True) %}
+    nn.Bilinear({{ in1_features }}, {{ in2_features }}, {{ out_features }}, bias={{ bias }})
+{% endmacro %}
+
+{% macro Conv1d(
+    in_channels, out_channels, kernel_size,
+    stride=1, padding=0, dilation=1, groups=1,
+    bias=True, padding_mode='zeros'
+) %}
+    nn.Conv1d(
+        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
+        stride={{ stride }}, padding={{ padding }}, dilation={{ dilation }},
+        groups={{ groups }}, bias={{ bias }}, padding_mode='{{ padding_mode }}'
+    )
+{% endmacro %}
+
+{% macro Conv2d(
+    in_channels, out_channels, kernel_size, stride,
+    padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros'
+) %}
+    nn.Conv2d(
+        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
+        stride={{ stride }}, padding={{ padding }}, dilation={{ dilation }},
+        groups={{ groups }}, bias={{ bias }}, padding_mode='{{ padding_mode }}'
+    )
+{% endmacro %}
+
+{% macro Conv3d(
+    in_channels, out_channels, kernel_size,
+    stride=1, padding=0, dilation=1, groups=1,
+    bias=True, padding_mode='zeros'
+) %}
+    nn.Conv3d(
+        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
+        stride={{ stride }}, padding={{ padding }}, dilation={{ dilation }},
+        groups={{ groups }}, bias={{ bias }}, padding_mode='{{ padding_mode }}'
+    )
+{% endmacro %}
+
+{% macro ConvTranspose1d(
+    in_channels, out_channels, kernel_size,
+    stride=1, padding=0, output_padding=0, bias=True
+) %}
+    nn.ConvTranspose1d(
+        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
+        stride={{ stride }}, padding={{ padding }},
+        output_padding={{ output_padding }}, bias={{ bias }}
+    )
+{% endmacro %}
+
+{% macro ConvTranspose2d(
+    in_channels, out_channels, kernel_size,
+    stride=1, padding=0, output_padding=0, bias=True
+) %}
+    nn.ConvTranspose2d(
+        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
+        stride={{ stride }}, padding={{ padding }},
+        output_padding={{ output_padding }}, bias={{ bias }}
+    )
+{% endmacro %}
+
+{% macro ConvTranspose3d(
+    in_channels, out_channels, kernel_size,
+    stride=1, padding=0, output_padding=0, bias=True
+) %}
+    nn.ConvTranspose3d(
+        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
+        stride={{ stride }}, padding={{ padding }},
+        output_padding={{ output_padding }}, bias={{ bias }}
+    )
+{% endmacro %}
+
+{% macro MaxPool1d(
+    kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False
+) %}
+    nn.MaxPool1d(
+        {{ kernel_size }}, stride={{ stride or kernel_size }},
+        padding={{ padding }}, dilation={{ dilation }}, ceil_mode={{ ceil_mode }}
+    )
+{% endmacro %}
+
+{% macro MaxPool2d(
+    kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False
+) %}
+    nn.MaxPool2d(
+        {{ kernel_size }}, stride={{ stride or kernel_size }},
+        padding={{ padding }}, dilation={{ dilation }}, ceil_mode={{ ceil_mode }}
+    )
+{% endmacro %}
+
+{% macro MaxPool3d(
+    kernel_size, stride=None, padding=0, dilation=1, ceil_mode=False
+) %}
+    nn.MaxPool3d(
+        {{ kernel_size }}, stride={{ stride or kernel_size }},
+        padding={{ padding }}, dilation={{ dilation }}, ceil_mode={{ ceil_mode }}
+    )
+{% endmacro %}
+
+{% macro AvgPool1d(
+    kernel_size, stride=None, padding=0, ceil_mode=False, count_include_pad=True
+) %}
+    nn.AvgPool1d(
+        {{ kernel_size }}, stride={{ stride or kernel_size }},
+        padding={{ padding }}, ceil_mode={{ ceil_mode }},
+        count_include_pad={{ count_include_pad }}
+    )
+{% endmacro %}
+
+{% macro AvgPool2d(
+    kernel_size, stride=None, padding=0, ceil_mode=False, count_include_pad=True
+) %}
+    nn.AvgPool2d(
+        {{ kernel_size }}, stride={{ stride or kernel_size }},
+        padding={{ padding }}, ceil_mode={{ ceil_mode }},
+        count_include_pad={{ count_include_pad }}
+    )
+{% endmacro %}
+
+{% macro AvgPool3d(
+    kernel_size, stride=None, padding=0, ceil_mode=False, count_include_pad=True
+) %}
+    nn.AvgPool3d(
+        {{ kernel_size }}, stride={{ stride or kernel_size }},
+        padding={{ padding }}, ceil_mode={{ ceil_mode }},
+        count_include_pad={{ count_include_pad }}
+    )
+{% endmacro %}
+
+{% macro BatchNorm1d(
+    num_features, eps=1e-5, momentum=0.1, affine=True, track_running_stats=True
+) %}
+    nn.BatchNorm1d(
+        {{ num_features }}, eps={{ eps }}, momentum={{ momentum }},
+        affine={{ affine }}, track_running_stats={{ track_running_stats }}
+    )
+{% endmacro %}
+
+{% macro BatchNorm2d(
+    num_features, eps=1e-5, momentum=0.1, affine=True, track_running_stats=True
+) %}
+    nn.BatchNorm2d(
+        {{ num_features }}, eps={{ eps }}, momentum={{ momentum }},
+        affine={{ affine }}, track_running_stats={{ track_running_stats }}
+    )
+{% endmacro %}
+
+{% macro BatchNorm3d(
+    num_features, eps=1e-5, momentum=0.1, affine=True, track_running_stats=True
+) %}
+    nn.BatchNorm3d(
+        {{ num_features }}, eps={{ eps }}, momentum={{ momentum }},
+        affine={{ affine }}, track_running_stats={{ track_running_stats }}
+    )
+{% endmacro %}
+
+{% macro LayerNorm(
+    normalized_shape, eps=1e-5, elementwise_affine=True
+) %}
+    nn.LayerNorm(
+        {{ normalized_shape }}, eps={{ eps }}, elementwise_affine={{ elementwise_affine }}
+    )
+{% endmacro %}
+
+{% macro Transformer(
+    d_model=512, nhead=8, num_encoder_layers=6, num_decoder_layers=6,
+    dim_feedforward=2048, dropout=0.1, activation='relu'
+) %}
+    nn.Transformer(
+        d_model={{ d_model }}, nhead={{ nhead }},
+        num_encoder_layers={{ num_encoder_layers }},
+        num_decoder_layers={{ num_decoder_layers }},
+        dim_feedforward={{ dim_feedforward }}, dropout={{ dropout }},
+        activation='{{ activation }}'
+    )
+{% endmacro %}
+
+{% macro MultiheadAttention(
+    embed_dim, num_heads, dropout=0.0, bias=True, add_bias_kv=False
+) %}
+    nn.MultiheadAttention(
+        {{ embed_dim }}, {{ num_heads }},
+        dropout={{ dropout }}, bias={{ bias }}, add_bias_kv={{ add_bias_kv }}
+    )
+{% endmacro %}
+
+{% macro Dropout(p=0.5, inplace=False) %}
+    nn.Dropout(p={{ p }}, inplace={{ inplace }})
+{% endmacro %}
+
+{% macro Dropout1d(p=0.5, inplace=False) %}
+    nn.Dropout1d(p={{ p }}, inplace={{ inplace }})
+{% endmacro %}
+
+{% macro Dropout2d(p=0.5, inplace=False) %}
+    nn.Dropout2d(p={{ p }}, inplace={{ inplace }})
+{% endmacro %}
+
+{% macro Dropout3d(p=0.5, inplace=False) %}
+    nn.Dropout3d(p={{ p }}, inplace={{ inplace }})
+{% endmacro %}
+
+{% macro Embedding(
+    num_embeddings, embedding_dim, padding_idx=None, max_norm=None, sparse=False
+) %}
+    nn.Embedding(
+        {{ num_embeddings }}, {{ embedding_dim }},
+        padding_idx={{ padding_idx }}, max_norm={{ max_norm }}, sparse={{ sparse }}
+    )
+{% endmacro %}
+
+{% macro PixelShuffle(upscale_factor) %}
+    nn.PixelShuffle(upscale_factor={{ upscale_factor }})
+{% endmacro %}
+
+{% macro Upsample(size, scale_factor=None, mode='nearest') %}
+    nn.Upsample(size={{ size }}, scale_factor={{ scale_factor }}, mode='{{ mode }}')
+{% endmacro %}
+
+{% macro LSTM(
+    input_size, hidden_size, num_layers=1, batch_first=False, bidirectional=False
+) %}
+    nn.LSTM(
+        input_size={{ input_size }}, hidden_size={{ hidden_size }},
+        num_layers={{ num_layers }}, batch_first={{ batch_first }},
+        bidirectional={{ bidirectional }}
+    )
+{% endmacro %}
+
+{% macro Flatten(start_dim=1, end_dim=-1) %}
+    nn.Flatten(start_dim={{ start_dim }}, end_dim={{ end_dim }})
+{% endmacro %}
+
+{% macro Unfold(kernel_size, stride=1, padding=0, dilation=1) %}
+    nn.Unfold(
+        kernel_size={{ kernel_size }}, stride={{ stride }},
+        padding={{ padding }}, dilation={{ dilation }}
+    )
+{% endmacro %}
+
+### ./models/audio.j2 ###
+
+
+{% macro conformer(input_dim, num_heads, ffn_dim, num_layers, depthwise_conv_kernel_size, dropout=0.0, use_group_norm=False, convolution_first=False) %}
+Conformer(
+    input_dim={{ input_dim }},
+    num_heads={{ num_heads }},
+    ffn_dim={{ ffn_dim }},
+    num_layers={{ num_layers }},
+    depthwise_conv_kernel_size={{ depthwise_conv_kernel_size }},
+    dropout={{ dropout }},
+    use_group_norm={{ use_group_norm }},
+    convolution_first={{ convolution_first }}
+)
+{% endmacro %}
+
+{% macro wave2letter(num_classes=40, input_type='waveform', num_features=1) %}
+Wave2Letter(
+    num_classes={{ num_classes }},
+    input_type='{{ input_type }}',
+    num_features={{ num_features }}
+)
+{% endmacro %}
+
+{% macro wavernn(upsample_scales, n_classes, hop_length, n_res_block=10, n_rnn=512, n_fc=512, kernel_size=5, n_freq=128, n_hidden=128, n_output=128) %}
+WaveRNN(
+    upsample_scales={{ upsample_scales }},
+    n_classes={{ n_classes }},
+    hop_length={{ hop_length }},
+    n_res_block={{ n_res_block }},
+    n_rnn={{ n_rnn }},
+    n_fc={{ n_fc }},
+    kernel_size={{ kernel_size }},
+    n_freq={{ n_freq }},
+    n_hidden={{ n_hidden }},
+    n_output={{ n_output }}
+)
+{% endmacro %}
+
+### ./models/ML.j2 ###
+
+
+
+
+### ./models/text.j2 ###
+
+
+{% macro glove(dim, name) %}
+GloVe(
+    dim={{ dim }},
+    name='{{ name }}'
+)
+{% endmacro %}
+
+{% macro fasttext(language) %}
+FastText(
+    language='{{ language }}'
+)
+{% endmacro %}
+
+{% macro transformer(d_model, nhead, num_encoder_layers, num_decoder_layers) %}
+Transformer(
+    d_model={{ d_model }},
+    nhead={{ nhead }},
+    num_encoder_layers={{ num_encoder_layers }},
+    num_decoder_layers={{ num_decoder_layers }}
+)
+{% endmacro %}
+
+{% macro xlmroberta(num_classes, dropout, pooler_type) %}
+XLMRoberta(
+    num_classes={{ num_classes }},
+    dropout={{ dropout }},
+    pooler_type='{{ pooler_type }}'
+)
+{% endmacro %}
+
+### ./models/image.j2 ###
+
+
+{% macro resnet(pretrained, num_classes=1000, replace_stride_with_dilation=None) %}
+ResNet(
+    pretrained={{ pretrained }},
+    num_classes={{ num_classes }},
+    replace_stride_with_dilation={{ replace_stride_with_dilation }}
+)
+{% endmacro %}
+
+{% macro efficientnet(width_mult, depth_mult, dropout) %}
+EfficientNet(
+    width_mult={{ width_mult }},
+    depth_mult={{ depth_mult }},
+    dropout={{ dropout }}
+)
+{% endmacro %}
+
+{% macro vit(image_size, patch_size, num_layers, num_heads, hidden_dim) %}
+VisionTransformer(
+    image_size={{ image_size }},
+    patch_size={{ patch_size }},
+    num_layers={{ num_layers }},
+    num_heads={{ num_heads }},
+    hidden_dim={{ hidden_dim }}
+)
+{% endmacro %}
+
+{% macro faster_rcnn(backbone, num_classes, min_size=None, max_size=None) %}
+FasterRCNN(
+    backbone={{ backbone }},
+    num_classes={{ num_classes }},
+    min_size={{ min_size }},
+    max_size={{ max_size }}
+)
+{% endmacro %}
+
+{% macro mask_rcnn(box_detections_per_img) %}
+MaskRCNN(
+    box_detections_per_img={{ box_detections_per_img }}
+)
+{% endmacro %}
+
+{% macro deeplabv3(backbone, atrous_rates, num_classes) %}
+DeepLabV3(
+    backbone='{{ backbone }}',
+    atrous_rates={{ atrous_rates }},
+    num_classes={{ num_classes }}
+)
+{% endmacro %}
+
+
+### ./data/transforms/audio.j2 ###
+
+
+{% macro speed(orig_freq, factor) %}
+Speed(
+    orig_freq={{ orig_freq }},
+    factor={{ factor }}
+)
+{% endmacro %}
+
+{% macro amplitude_to_db(stype='"power"', top_db=None) %}
+AmplitudeToDB(
+    stype={{ stype }},
+    top_db={{ top_db }}
+)
+{% endmacro %}
+
+{% macro resample(orig_freq=16000, new_freq=16000, resampling_method='"sinc_interp_hann"', lowpass_filter_width=6, rolloff=0.99, beta=None, dtype=None) %}
+Resample(
+    orig_freq={{ orig_freq }},
+    new_freq={{ new_freq }},
+    resampling_method={{ resampling_method }},
+    lowpass_filter_width={{ lowpass_filter_width }},
+    rolloff={{ rolloff }},
+    beta={{ beta }},
+    dtype={{ dtype }}
+)
+{% endmacro %}
+
+{% macro fade(fade_in_len=0, fade_out_len=0, fade_shape='"linear"') %}
+Fade(
+    fade_in_len={{ fade_in_len }},
+    fade_out_len={{ fade_out_len }},
+    fade_shape={{ fade_shape }}
+)
+{% endmacro %}
+
+{% macro vol(gain, gain_type='"amplitude"') %}
+Vol(
+    gain={{ gain }},
+    gain_type={{ gain_type }}
+)
+{% endmacro %}
+
+{% macro loudness(sample_rate) %}
+Loudness(
+    sample_rate={{ sample_rate }}
+)
+{% endmacro %}
+
+{% macro add_noise(waveform, noise, snr, lengths=None) %}
+AddNoise(
+    waveform={{ waveform }},
+    noise={{ noise }},
+    snr={{ snr }},
+    lengths={{ lengths }}
+)
+{% endmacro %}
+
+{% macro spectrogram(n_fft=400, win_length=None, hop_length=None, pad=0, window_fn='torch.hann_window', power=2, normalized=False, wkwargs=None, center=True, pad_mode='"reflect"', onesided=True, return_complex=None) %}
+Spectrogram(
+    n_fft={{ n_fft }},
+    win_length={{ win_length }},
+    hop_length={{ hop_length }},
+    pad={{ pad }},
+    window_fn={{ window_fn }},
+    power={{ power }},
+    normalized={{ normalized }},
+    wkwargs={{ wkwargs }},
+    center={{ center }},
+    pad_mode={{ pad_mode }},
+    onesided={{ onesided }},
+    return_complex={{ return_complex }}
+)
+{% endmacro %}
+
+{% macro inverse_spectrogram(n_fft=400, win_length=None, hop_length=None, pad=0, window_fn='torch.hann_window', normalized=False, wkwargs=None, center=True, pad_mode='"reflect"', onesided=True) %}
+InverseSpectrogram(
+    n_fft={{ n_fft }},
+    win_length={{ win_length }},
+    hop_length={{ hop_length }},
+    pad={{ pad }},
+    window_fn={{ window_fn }},
+    normalized={{ normalized }},
+    wkwargs={{ wkwargs }},
+    center={{ center }},
+    pad_mode={{ pad_mode }},
+    onesided={{ onesided }}
+)
+{% endmacro %}
+
+{% macro mel_scale(n_mels=128, sample_rate=16000, f_min=0.0, f_max=None, n_stft=201, norm=None, mel_scale='"htk"') %}
+MelScale(
+    n_mels={{ n_mels }},
+    sample_rate={{ sample_rate }},
+    f_min={{ f_min }},
+    f_max={{ f_max }},
+    n_stft={{ n_stft }},
+    norm={{ norm }},
+    mel_scale={{ mel_scale }}
+)
+{% endmacro %}
+
+{% macro inverse_mel_scale(n_stft, n_mels=128, sample_rate=16000, f_min=0.0, f_max=None, norm=None, mel_scale='"htk"', driver='"gels"') %}
+InverseMelScale(
+    n_stft={{ n_stft }},
+    n_mels={{ n_mels }},
+    sample_rate={{ sample_rate }},
+    f_min={{ f_min }},
+    f_max={{ f_max }},
+    norm={{ norm }},
+    mel_scale={{ mel_scale }},
+    driver={{ driver }}
+)
+{% endmacro %}
+
+{% macro mel_spectrogram(sample_rate=16000, n_fft=400, win_length=None, hop_length=None, f_min=0.0, f_max=None, pad=0, n_mels=128, window_fn='torch.hann_window', power=2, normalized=False, wkwargs=None, center=True) %}
+MelSpectrogram(
+    sample_rate={{ sample_rate }},
+    n_fft={{ n_fft }},
+    win_length={{ win_length }},
+    hop_length={{ hop_length }},
+    f_min={{ f_min }},
+    f_max={{ f_max }},
+    pad={{ pad }},
+    n_mels={{ n_mels }},
+    window_fn={{ window_fn }},
+    power={{ power }},
+    normalized={{ normalized }},
+    wkwargs={{ wkwargs }},
+    center={{ center }}
+)
+{% endmacro %}
+
+### ./data/transforms/ML.j2 ###
+
+
+
+
+### ./data/transforms/text.j2 ###
+
+
+{% macro RegexTokenizer(pattern) %}
+RegexTokenizer(
+    pattern={{ pattern }}
+)
+{% endmacro %}
+
+{% macro SentencePieceTokenizer(sp_model) %}
+SentencePieceTokenizer(
+    sp_model={{ sp_model }}
+)
+{% endmacro %}
+
+{% macro VocabTransform(vocab) %}
+VocabTransform(
+    vocab={{ vocab }}
+)
+{% endmacro %}
+
+{% macro ToTensor(dtype) %}
+ToTensor(
+    dtype={{ dtype }}
+)
+{% endmacro %}
+
+{% macro Truncate(max_seq_len) %}
+Truncate(
+    max_seq_len={{ max_seq_len }}
+)
+{% endmacro %}
+
+{% macro PadTransform(max_length, pad_value=0) %}
+PadTransform(
+    max_length={{ max_length }},
+    pad_value={{ pad_value }}
+)
+{% endmacro %}
+
+{% macro AddToken(token, begin) %}
+AddToken(
+    token={{ token }},
+    begin={{ begin }}
+)
+{% endmacro %}
+
+{% macro BARTTokenizer(tokenizer) %}
+BARTTokenizer(
+    tokenizer={{ tokenizer }}
+)
+{% endmacro %}
+
+{% macro LabelToIndex(label_names) %}
+LabelToIndex(
+    label_names={{ label_names }}
+)
+{% endmacro %}
+
+
+### ./data/transforms/image.j2 ###
+
+
+{# image_transforms.j2 #}
+{% macro image_resize(size, interpolation="InterpolationMode.BILINEAR") -%}
+T.Resize(size={{ size }}, interpolation={{ interpolation }})
+{%- endmacro %}
+
+{% macro image_random_crop(size, padding=None, pad_if_needed=False) -%}
+T.RandomCrop(size={{ size }}{% if padding is not none %}, padding={{ padding }}{% endif %}, pad_if_needed={{ pad_if_needed|lower }})
+{%- endmacro %}
+
+{% macro image_random_horizontal_flip(p=0.5) -%}
+T.RandomHorizontalFlip(p={{ p }})
+{%- endmacro %}
+
+{% macro image_random_rotation(degrees, interpolation="InterpolationMode.BICUBIC") -%}
+T.RandomRotation(degrees={{ degrees }}, interpolation={{ interpolation }})
+{%- endmacro %}
+
+{% macro image_color_jitter(brightness=0, contrast=0, saturation=0, hue=0) -%}
+T.ColorJitter(brightness={{ brightness }}, contrast={{ contrast }}, saturation={{ saturation }}, hue={{ hue }})
+{%- endmacro %}
+
+{% macro image_grayscale(num_output_channels=1) -%}
+T.Grayscale(num_output_channels={{ num_output_channels }})
+{%- endmacro %}
+
+{% macro image_random_adjust_sharpness(sharpness_factor, p=0.5) -%}
+T.RandomAdjustSharpness(sharpness_factor={{ sharpness_factor }}, p={{ p }})
+{%- endmacro %}
+
+{% macro image_to_tensor() -%}
+T.ToTensor()
+{%- endmacro %}
+
+{% macro image_normalize(mean, std) -%}
+T.Normalize(mean={{ mean }}, std={{ std }})
+{%- endmacro %}
+
+{% macro image_convert_dtype(dtype="torch.float32") -%}
+T.ConvertImageDtype(dtype={{ dtype }})
+{%- endmacro %}
+
+{% macro image_random_erasing(p=0.5, scale=(0.02, 0.33), ratio=(0.3, 3.3), value=0) -%}
+T.RandomErasing(p={{ p }}, scale={{ scale }}, ratio={{ ratio }}, value={{ value }})
+{%- endmacro %}
+
+{% macro image_gaussian_blur(kernel_size, sigma) -%}
+T.GaussianBlur(kernel_size={{ kernel_size }}, sigma={{ sigma }})
+{%- endmacro %}
+
+
+### ./data/loaders/audio/classification.j2 ###
+
+
+
+class AudioClassificationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, label_type='{{ label_type | default("folder-name") }}', label_map={{ label_map | default("None") }}, return_format='{{ return_format | default("dict") }}', multi_class={{ multi_class | default("False") }}, multi_label={{ multi_label | default("False") }}, split_type='{{ split_type | default("include") }}'):
+        self.root = Path(root) / split
+        self.duration = duration
+        self.return_format = return_format
+        self.label_type = label_type
+        self.label_map = {{ label_map | default("self._infer_label_map()") }}
+        self.sample_rate = 16000
+        self.clip_samples = int(self.duration * self.sample_rate)
+        self.data = self._load_files()
+
+    def _infer_label_map(self):
+        classes = sorted([d.name for d in self.root.iterdir() if d.is_dir()])
+        return {cls: i for i, cls in enumerate(classes)}
+
+    def _load_files(self):
+        data = []
+        for cls in self.label_map:
+            for file in (self.root / cls).glob('*.wav'):
+                data.append((file, self.label_map[cls]))
+        return data
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        path, label = self.data[idx]
+        waveform, sr = torchaudio.load(path)
+        waveform = torchaudio.functional.resample(waveform, sr, self.sample_rate)
+        if waveform.shape[1] < self.clip_samples:
+            waveform = torch.nn.functional.pad(waveform, (0, self.clip_samples - waveform.shape[1]))
+        else:
+            waveform = waveform[:, :self.clip_samples]
+
+        {% if self.return_format == 'tuple' %}
+        return waveform, label
+        {% elif return_format == 'raw' %}
+        return waveform
+        {% else %}
+        return {'audio': waveform, 'label': label}
+        {% endif %}
+
+def get_loader(root, batch_size=16, split='train', shuffle=True, **kwargs):
+    dataset = AudioClassificationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/audio/conversion.j2 ###
+
+
+
+class AudioConversionDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, return_format='{{ return_format | default("dict") }}'):
+        self.root = Path(root) / split
+        self.sample_rate = 16000
+        self.clip_samples = int(duration * self.sample_rate)
+        self.return_format = return_format
+        self.data = list((self.root / 'input').glob('*.wav'))
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        in_path = self.data[idx]
+        out_path = Path(str(in_path).replace('input', 'target'))
+        input_audio = torchaudio.load(in_path)[0][:, :self.clip_samples]
+        target_audio = torchaudio.load(out_path)[0][:, :self.clip_samples]
+
+        {% if self.return_format == 'tuple' %}
+        return input_audio, target_audio
+        {% elif return_format == 'raw' %}
+        return input_audio
+        {% else %}
+        return {'input': input_audio, 'target': target_audio}
+        {% endif %}
+
+def get_loader(root, batch_size=4, split='train', shuffle=True, **kwargs):
+    dataset = AudioConversionDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/audio/generation.j2 ###
+
+
+
+
+class AudioGenerationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, include_prompt={{ include_prompt | default("True") }}, include_target={{ include_target | default("True") }}, audio_pair={{ audio_pair | default("False") }}, text_pair={{ text_pair | default("False") }}, return_format='{{ return_format | default("dict") }}'):
+        self.root = Path(root) / split
+        self.sample_rate = 16000
+        self.clip_samples = int(duration * self.sample_rate)
+        self.include_prompt = include_prompt
+        self.include_target = include_target
+        self.audio_pair = audio_pair
+        self.text_pair = text_pair
+        self.return_format = return_format
+        self.data = self._load_data()
+
+    def _load_data(self):
+        {% if audio_pair %}
+        return list((self.root / 'input').glob('*.wav'))
+        {% elif text_pair %}
+        return list((self.root / 'text').glob('*.txt'))
+        {% else %}
+        return list((self.root / 'prompt').glob('*.wav'))
+        {% endif %}
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        item = {}
+        {% if audio_pair %}
+        in_path = self.data[idx]
+        out_path = Path(str(in_path).replace('input', 'target'))
+        item['prompt'] = torchaudio.load(in_path)[0][:, :self.clip_samples]
+        item['target'] = torchaudio.load(out_path)[0][:, :self.clip_samples]
+        {% elif text_pair %}
+        txt_path = self.data[idx]
+        audio_path = Path(str(txt_path).replace('text', 'target').replace('.txt', '.wav'))
+        item['prompt'] = txt_path.read_text().strip()
+        item['target'] = torchaudio.load(audio_path)[0][:, :self.clip_samples]
+        {% else %}
+        audio_path = self.data[idx]
+        item['prompt'] = torchaudio.load(audio_path)[0][:, :self.clip_samples]
+        {% endif %}
+
+        {% if self.return_format == 'tuple' %}
+        return tuple(item.values())
+        {% elif return_format == 'raw' %}
+        return item['prompt']
+        {% else %}
+        return item
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = AudioGenerationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/audio/recognition.j2 ###
+
+
+
+
+class AudioRecognitionDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', duration={{ duration | default(5.0) }}, return_format='{{ return_format | default("dict") }}'):
+        self.root = Path(root) / split
+        self.sample_rate = 16000
+        self.clip_samples = int(duration * self.sample_rate)
+        self.return_format = return_format
+        self.audio_files = list((self.root / 'audio').glob('*.wav'))
+
+    def __len__(self):
+        return len(self.audio_files)
+
+    def __getitem__(self, idx):
+        audio_path = self.audio_files[idx]
+        transcript_path = Path(str(audio_path).replace('audio', 'transcript').replace('.wav', '.txt'))
+        waveform = torchaudio.load(audio_path)[0][:, :self.clip_samples]
+        transcript = transcript_path.read_text().strip()
+
+        {% if self.return_format == 'tuple' %}
+        return waveform, transcript
+        {% elif return_format == 'raw' %}
+        return waveform
+        {% else %}
+        return {'audio': waveform, 'text': transcript}
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = AudioRecognitionDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/image/classification.j2 ###
+
+
+
+class ImageClassificationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', label_type='{{ label_type | default("folder-name") }}', label_map={{ label_map | default("None") }}, return_format='{{ return_format | default("dict") }}', split_type='{{ split_type | default("include") }}'):
+        self.root = Path(root) / split
+        self.label_map = {{ label_map | default("self._infer_label_map()") }}
+        self.return_format = return_format
+        self.transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor()
+        ])
+        self.data = self._load_data()
+
+    def _infer_label_map(self):
+        classes = sorted([d.name for d in self.root.iterdir() if d.is_dir()])
+        return {cls: i for i, cls in enumerate(classes)}
+
+    def _load_data(self):
+        items = []
+        for cls in self.label_map:
+            for img_path in (self.root / cls).glob('*.jpg'):
+                items.append((img_path, self.label_map[cls]))
+        return items
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        img_path, label = self.data[idx]
+        image = self.transform(Image.open(img_path).convert("RGB"))
+
+        {% if self.return_format == 'tuple' %}
+        return image, label
+        {% elif return_format == 'raw' %}
+        return image
+        {% else %}
+        return {'image': image, 'label': label}
+        {% endif %}
+
+def get_loader(root, batch_size=32, split='train', shuffle=True, **kwargs):
+    dataset = ImageClassificationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/image/generation.j2 ###
+
+
+
+class ImageGenerationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', return_format='{{ return_format | default("dict") }}', include_prompt={{ include_prompt | default("True") }}, include_target={{ include_target | default("True") }}, text_pair={{ text_pair | default("True") }}, split_type='{{ split_type | default("include") }}'):
+        self.root = Path(root) / split
+        self.include_prompt = include_prompt
+        self.include_target = include_target
+        self.text_pair = text_pair
+        self.return_format = return_format
+        self.transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.ToTensor()
+        ])
+        self.data = self._load_data()
+
+    def _load_data(self):
+        if self.text_pair:
+            prompt_files = sorted((self.root / 'prompt').glob('*.txt'))
+            return [(p, Path(str(p).replace('prompt', 'target').replace('.txt', '.jpg'))) for p in prompt_files]
+        else:
+            return list((self.root / 'target').glob('*.jpg'))
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        {% if text_pair %}
+        prompt_path, image_path = self.data[idx]
+        prompt = prompt_path.read_text().strip()
+        image = self.transform(Image.open(image_path).convert("RGB"))
+        {% else %}
+        prompt = None
+        image = self.transform(Image.open(self.data[idx]).convert("RGB"))
+        {% endif %}
+
+        {% if self.return_format == 'tuple' %}
+        return (prompt, image) if prompt else (image,)
+        {% elif return_format == 'raw' %}
+        return image
+        {% else %}
+        out = {'image': image}
+        {% if prompt %}
+        out['prompt'] = prompt
+        {% endif %}
+        return out
+        {% endif %}
+
+def get_loader(root, batch_size=16, split='train', shuffle=True, **kwargs):
+    dataset = ImageGenerationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/image/object_detection.j2 ###
+
+
+import json
+
+class ObjectDetectionDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', return_format='{{ return_format | default("dict") }}', label_type='file', label_map={{ label_map | default("None") }}, split_type='{{ split_type | default("include") }}'):
+        self.root = Path(root) / split
+        self.return_format = return_format
+        self.transform = transforms.Compose([
+            transforms.Resize((512, 512)),
+            transforms.ToTensor()
+        ])
+        self.data = list((self.root / 'images').glob('*.jpg'))
+        self.label_map = {{ label_map | default("self._infer_label_map()") }}
+
+    def _infer_label_map(self):
+        labels = set()
+        for ann_path in (self.root / 'labels').glob('*.json'):
+            anns = json.loads(ann_path.read_text())
+            for obj in anns:
+                labels.add(obj['label'])
+        return {k: i for i, k in enumerate(sorted(labels))}
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        img_path = self.data[idx]
+        ann_path = Path(str(img_path).replace('images', 'labels').replace('.jpg', '.json'))
+        anns = json.loads(ann_path.read_text())
+
+        boxes = []
+        labels = []
+        for ann in anns:
+            boxes.append(ann['bbox'])  # [x_min, y_min, width, height]
+            labels.append(self.label_map[ann['label']])
+        boxes = torch.tensor(boxes, dtype=torch.float32)
+        labels = torch.tensor(labels, dtype=torch.int64)
+
+        image = self.transform(Image.open(img_path).convert("RGB"))
+
+        {% if self.return_format == 'tuple' %}
+        return image, {'boxes': boxes, 'labels': labels}
+        {% elif return_format == 'raw' %}
+        return image
+        {% else %}
+        return {'image': image, 'boxes': boxes, 'labels': labels}
+        {% endif %}
+
+def get_loader(root, batch_size=4, split='train', shuffle=True, **kwargs):
+    dataset = ObjectDetectionDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, collate_fn=lambda x: tuple(zip(*x)))
+
+
+### ./data/loaders/image/segmentation.j2 ###
+
+
+
+class SegmentationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', return_format='{{ return_format | default("dict") }}', label_map={{ label_map | default("None") }}, split_type='{{ split_type | default("include") }}'):
+        self.root = Path(root) / split
+        self.return_format = return_format
+        self.image_paths = sorted((self.root / 'images').glob('*.jpg'))
+        self.mask_paths = [Path(str(p).replace('images', 'masks').replace('.jpg', '.png')) for p in self.image_paths]
+        self.img_transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.ToTensor()
+        ])
+        self.mask_transform = transforms.Compose([
+            transforms.Resize((256, 256)),
+            transforms.PILToTensor()
+        ])
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        image = self.img_transform(Image.open(self.image_paths[idx]).convert("RGB"))
+        mask = self.mask_transform(Image.open(self.mask_paths[idx]))[0].long()
+
+       {% if self.return_format == 'tuple' %}
+        return image, mask
+        {% elif return_format == 'raw' %}
+        return image
+        {% else %}
+        return {'image': image, 'mask': mask}
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = SegmentationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/text/classification.j2 ###
+
+
+
+import json
+
+class TextClassificationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', tokenizer_name='{{ tokenizer_name | default("bert-base-uncased") }}', label_type='{{ label_type | default("folder-name") }}', label_map={{ label_map | default("None") }}, return_format='{{ return_format | default("dict") }}', max_length={{ max_length | default(512) }}, padding='{{ padding | default("max_length") }}', truncation='{{ truncation | default("right") }}', add_special_tokens={{ add_special_tokens | default("True") }}, return_attn_masks={{ return_attn_masks | default("True") }}, use_fast={{ use_fast | default("True") }}, multi_class={{ multi_class | default("False") }}, multi_label={{ multi_label | default("False") }}, split_type='{{ split_type | default("include") }}'):
+        self.root = Path(root) / split
+        self.label_type = label_type
+        self.label_map = {{ label_map | default("self._infer_label_map()") }}
+        self.return_format = return_format
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=use_fast)
+        self.max_length = max_length
+        self.padding = padding
+        self.truncation = truncation == 'right'
+        self.add_special_tokens = add_special_tokens
+        self.return_attn_masks = return_attn_masks
+        self.data = self._load_data()
+
+    def _infer_label_map(self):
+        if self.label_type == 'folder-name':
+            classes = sorted([d.name for d in self.root.iterdir() if d.is_dir()])
+            return {cls: i for i, cls in enumerate(classes)}
+        raise NotImplementedError
+
+    def _load_data(self):
+        pairs = []
+        for cls in self.label_map:
+            for file in (self.root / cls).glob('*.txt'):
+                text = file.read_text().strip()
+                pairs.append((text, self.label_map[cls]))
+        return pairs
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        text, label = self.data[idx]
+        enc = self.tokenizer(
+            text,
+            max_length=self.max_length,
+            padding=self.padding,
+            truncation=self.truncation,
+            return_attention_mask=self.return_attn_masks,
+            add_special_tokens=self.add_special_tokens,
+            return_tensors='pt'
+        )
+        input_ids = enc['input_ids'].squeeze(0)
+        attention_mask = enc['attention_mask'].squeeze(0) if self.return_attn_masks else None
+
+        {% if self.return_format == 'tuple' %}
+        return (input_ids, label)
+        {% elif return_format == 'raw' %}
+        return input_ids
+        {% else %}
+        out = {'input_ids': input_ids, 'label': label}
+        {% if return_attn_masks %}
+        out['attention_mask'] = attention_mask
+        {% endif %}
+        return out
+        {% endif %}
+
+def get_loader(root, batch_size=32, split='train', shuffle=True, **kwargs):
+    dataset = TextClassificationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/text/generation.j2 ###
+
+
+
+
+class TextGenerationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', tokenizer_name='{{ tokenizer_name | default("gpt2") }}', return_format='{{ return_format | default("dict") }}', max_length={{ max_length | default(512) }}, padding='{{ padding | default("max_length") }}', add_special_tokens={{ add_special_tokens | default("True") }}, return_attn_masks={{ return_attn_masks | default("True") }}, truncation='{{ truncation | default("right") }}', text_pair={{ text_pair | default("False") }}, include_prompt={{ include_prompt | default("True") }}, include_target={{ include_target | default("True") }}, use_fast={{ use_fast | default("True") }}):
+        self.root = Path(root) / split
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=use_fast)
+        self.max_length = max_length
+        self.padding = padding
+        self.return_format = return_format
+        self.include_prompt = include_prompt
+        self.include_target = include_target
+        self.return_attn_masks = return_attn_masks
+        self.text_pair = text_pair
+        self.truncation = truncation == 'right'
+        self.data = self._load_data()
+
+    def _load_data(self):
+        if self.text_pair:
+            prompt_files = sorted((self.root / 'prompt').glob('*.txt'))
+            return [(p.read_text().strip(), Path(str(p).replace('prompt', 'target')).read_text().strip()) for p in prompt_files]
+        else:
+            prompt_files = sorted((self.root / 'prompt').glob('*.txt'))
+            return [(p.read_text().strip(), None) for p in prompt_files]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        prompt, target = self.data[idx]
+        tokens = {}
+        if self.text_pair and self.include_prompt and self.include_target:
+            combined = prompt + self.tokenizer.sep_token + target
+            tokens = self.tokenizer(combined, max_length=self.max_length, padding=self.padding, truncation=self.truncation, return_attention_mask=self.return_attn_masks, add_special_tokens=add_special_tokens, return_tensors='pt')
+        elif self.include_prompt:
+            tokens = self.tokenizer(prompt, max_length=self.max_length, padding=self.padding, truncation=self.truncation, return_attention_mask=self.return_attn_masks, add_special_tokens=add_special_tokens, return_tensors='pt')
+        elif self.include_target and target:
+            tokens = self.tokenizer(target, max_length=self.max_length, padding=self.padding, truncation=self.truncation, return_attention_mask=self.return_attn_masks, add_special_tokens=add_special_tokens, return_tensors='pt')
+
+        input_ids = tokens['input_ids'].squeeze(0)
+        attention_mask = tokens['attention_mask'].squeeze(0) if self.return_attn_masks else None
+
+        {% if self.return_format == 'tuple' %}
+        return input_ids, target
+        {% elif return_format == 'raw' %}
+        return input_ids
+        {% else %}
+        out = {'input_ids': input_ids}
+        {% if return_attn_masks %}
+        out['attention_mask'] = attention_mask
+        {% endif %}
+        {% if target %}
+        out['target'] = target
+        {% endif %}
+        return out
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = TextGenerationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/text/summarisation.j2 ###
+
+
+
+
+class TextSummarizationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', tokenizer_name='{{ tokenizer_name | default("bert-base-uncased") }}', return_format='{{ return_format | default("dict") }}', max_length={{ max_length | default(512) }}, padding='{{ padding | default("max_length") }}', add_special_tokens={{ add_special_tokens | default("True") }}, return_attn_masks={{ return_attn_masks | default("True") }}, truncation='{{ truncation | default("right") }}', use_fast={{ use_fast | default("True") }}):
+        self.root = Path(root) / split
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=use_fast)
+        self.max_length = max_length
+        self.padding = padding
+        self.return_format = return_format
+        self.return_attn_masks = return_attn_masks
+        self.truncation = truncation == 'right'
+        self.data = self._load_data()
+
+    def _load_data(self):
+        srcs = sorted((self.root / 'document').glob('*.txt'))
+        return [(doc.read_text().strip(), Path(str(doc).replace('document', 'summary')).read_text().strip()) for doc in srcs]
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        document, summary = self.data[idx]
+        enc = self.tokenizer(document, max_length=self.max_length, padding=self.padding, truncation=self.truncation, return_attention_mask=self.return_attn_masks, add_special_tokens=add_special_tokens, return_tensors='pt')
+        input_ids = enc['input_ids'].squeeze(0)
+        attention_mask = enc['attention_mask'].squeeze(0) if self.return_attn_masks else None
+
+        {% if self.return_format == 'tuple' %}
+        return input_ids, summary
+        {% elif return_format == 'raw' %}
+        return input_ids
+        {% else %}
+        out = {'input_ids': input_ids, 'summary': summary}
+        {% if return_attn_masks %}
+        out['attention_mask'] = attention_mask
+        {% endif %}
+        return out
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = TextSummarizationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./data/loaders/text/translation.j2 ###
+
+
+
+
+class TextTranslationDataset(Dataset):
+    def __init__(self, root, split='{{ split | default("train") }}', tokenizer_name='{{ tokenizer_name | default("xlm-roberta-base") }}', return_format='{{ return_format | default("dict") }}', max_length={{ max_length | default(512) }}, padding='{{ padding | default("max_length") }}', add_special_tokens={{ add_special_tokens | default("True") }}, return_attn_masks={{ return_attn_masks | default("True") }}, truncation='{{ truncation | default("right") }}', use_fast={{ use_fast | default("True") }}):
+        self.root = Path(root) / split
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=use_fast)
+        self.max_length = max_length
+        self.padding = padding
+        self.return_format = return_format
+        self.return_attn_masks = return_attn_masks
+        self.truncation = truncation == 'right'
+        self.data = self._load_data()
+
+    def _load_data(self):
+        srcs = sorted((self.root / 'source').glob('*.txt'))
+        return [(s.read_text().strip(), Path(str(s).replace('source', 'target')).read_text().strip()) for s in srcs]
+    
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        src, tgt = self.data[idx]
+        enc = self.tokenizer(src, max_length=self.max_length, padding=self.padding, truncation=self.truncation, return_attention_mask=self.return_attn_masks, add_special_tokens=add_special_tokens, return_tensors='pt')
+        input_ids = enc['input_ids'].squeeze(0)
+        attention_mask = enc['attention_mask'].squeeze(0) if self.return_attn_masks else None
+
+        {% if self.return_format == 'tuple' %}
+        return input_ids, tgt
+        {% elif return_format == 'raw' %}
+        return input_ids
+        {% else %}
+        out = {'input_ids': input_ids, 'target': tgt}
+        {% if return_attn_masks %}
+        out['attention_mask'] = attention_mask
+        {% endif %}
+        return out
+        {% endif %}
+
+def get_loader(root, batch_size=8, split='train', shuffle=True, **kwargs):
+    dataset = TextTranslationDataset(root=root, split=split, **kwargs)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+
+
+### ./imports.j2 ###
+
+
+import random
+from pathlib import Path
+import numpy as np
+import torch
+
+{% if config.data.data_format == "imagefolder" %}
+from PIL import Image
+from torchvision import transforms
+{% endif %}
+
+from torch.utils.data import DataLoader, Dataset
+
+{% if config.model.use_pretrained %}
+from torchvision import models
+from torchvision import transforms 
+{% endif %}
+
+import torch.nn as nn
+
+import torch.optim as optim
+
+{% if config.training.metrics %}
+import torchmetrics
+{% endif %}
+
+{% set main_task = config.data.main_task.lower() %}
+{% if "audio" in main_task %}
+import torchaudio
+import torchaudio.transforms as audio_transforms
+{% endif %}
+
+{% if "text" in main_task %}
+from torchtext.transforms import ToTensor
+from transformers import AutoTokenizer
+{% endif %}
+
+{% if config.data.sub_task.lower() == "text generation" %}
+from transformers import AutoModelForSeq2SeqLM
+from torchmetrics.text import BLEUScore
+{% endif %}
+
+{% if config.data.sub_task.lower() == "speech recognition" %}
+import torchaudio.functional as F
+{% endif %}
+
+{% if config.data.sub_task.lower() == "image segmentation" %}
+import segmentation_models_pytorch as smp
+{% endif %}
+
+### ./setup.j2 ###
+
+
+def set_seed(config, seed=None):
+    seed = seed or config['training'].get('seed', config.get('SEED', 42))
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+def get_device(config, device=None):
+    device_str = device or config.get('DEVICE', 'cpu')
+    return torch.device(device_str if torch.cuda.is_available() else 'cpu')
+
+### ./train/utils.j2 ###
+
+
+def get_criterion(config):
+    loss_cfg = config["training"]["loss"]
+    name = loss_cfg["name"]
+    params = loss_cfg.get("params", {})
+    return getattr(nn, name)(**params)
+
+def get_optimizer(model, config):
+    opt_cfg = config["training"]["optimizer"]
+    Optim = getattr(optim, opt_cfg["name"])
+    params = opt_cfg.get("params", {})
+    learning_rate = config["training"]["learning_rate"]
+    return Optim(model.parameters(), lr=learning_rate, **params)
+
+### ./train/eval_loop.j2 ###
+
+
+def evaluate(model, loader, criterion, device):
+    model.eval()
+    total_loss = 0
+    correct = 0
+    with torch.no_grad():
+        for batch in loader:
+            inputs, targets = batch["image"].to(device), batch["label"].to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, targets)
+            total_loss += loss.item()
+            correct += (outputs.argmax(dim=1) == targets).sum().item()
+    return total_loss / len(loader), correct / len(loader.dataset)
+
+### ./train/losses.j2 ###
+
+
+# Loss function definition
+{% set name = config.training.loss.name %}
+{% set args = config.training.loss.params %}
+
+{% if name == "cross_entropy" %}
+criterion = torch.nn.CrossEntropyLoss(**{{ args }})
+{% elif name == "bce" %}
+criterion = torch.nn.BCELoss(**{{ args }})
+{% elif name == "bce_with_logits" %}
+criterion = torch.nn.BCEWithLogitsLoss(**{{ args }})
+{% elif name == "mse" %}
+criterion = torch.nn.MSELoss(**{{ args }})
+{% elif name == "l1" %}
+criterion = torch.nn.L1Loss(**{{ args }})
+{% else %}
+raise NotImplementedError("Unsupported loss: {{ name }}")
+{% endif %}
+
+### ./train/metrics.j2 ###
+
+
+metrics = []
+{% for m in config.training.metrics %}
+{% if m.name == "accuracy" %}
+metrics.append(torchmetrics.Accuracy(**{{ m.params }}))
+{% elif m.name == "f1_score" %}
+metrics.append(torchmetrics.F1Score(**{{ m.params }}))
+{% elif m.name == "recall" %}
+metrics.append(torchmetrics.Recall(**{{ m.params }}))
+{% elif m.name == "mean_absolute_error" %}
+metrics.append(torchmetrics.MeanAbsoluteError(**{{ m.params }}))
+{% else %}
+raise NotImplementedError("Unsupported metric: {{ m.name }}")
+{% endif %}
+{% endfor %}
+
+### ./train/optimizers.j2 ###
+
+
+# Optimizer definition
+{% set name = config.training.optimizer.name %}
+{% set args = config.training.optimizer.params %}
+
+{% if name == "adam" %}
+optimizer = torch.optim.Adam(model.parameters(), **{{ args }})
+{% elif name == "sgd" %}
+optimizer = torch.optim.SGD(model.parameters(), **{{ args }})
+{% elif name == "rmsprop" %}
+optimizer = torch.optim.RMSprop(model.parameters(), **{{ args }})
+{% elif name == "adagrad" %}
+optimizer = torch.optim.Adagrad(model.parameters(), **{{ args }})
+{% elif name == "nadam" %}
+optimizer = torch.optim.NAdam(model.parameters(), **{{ args }})
+{% else %}
+raise NotImplementedError("Unsupported optimizer: {{ name }}")
+{% endif %}
+
+### ./train/train_loop.j2 ###
+
+
+def train_one_epoch(model, loader, criterion, optimizer, device):
+    model.train()
+    total_loss = 0
+    correct = 0
+    for batch in loader:
+        inputs, targets = batch["image"].to(device), batch["label"].to(device)
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        loss.backward()
+        optimizer.step()
+        total_loss += loss.item()
+        correct += (outputs.argmax(dim=1) == targets).sum().item()
+    return total_loss / len(loader), correct / len(loader.dataset)
+
+### ./train/monitoring.j2 ###
+
+
+# Monitoring Setup
+
+{% if config.monitoring.use_tensorboard %}
+from torch.utils.tensorboard import SummaryWriter
+writer = SummaryWriter()
+{% endif %}
+
+{% if config.monitoring.use_wandb %}
+import wandb
+wandb.init(project="{{ config.monitoring.project }}", config=config)
+{% endif %}
+
+{% if config.monitoring.use_mlflow %}
+import mlflow
+mlflow.start_run()
+{% endif %}
+
+{% if "threshold" in config.monitoring.threshold_alerts %}
+# Add threshold-based alert logic here
+print("Threshold alert not implemented")
+{% endif %}
+
+{% if "resource" in config.monitoring.resource_alerts %}
+# Add resource monitoring code here
+print("Resource alert not implemented")
+{% endif %}
+
+
+### ./runner.j2 ###
+
+
+def main(config):
+    set_seed(config)
+    device = get_device(config)
+
+    root = config["data"]["root"]
+    batch_size = config["training"]["batch_size"]
+
+    train_loader = get_loader(root=root, batch_size=batch_size, split="train")
+    val_loader = get_loader(root=root, batch_size=batch_size, split="val")
+
+    {% if config.model.use_pretrained %}
+    model = models.{{ config.model.pretrained.name }}(pretrained=True)
+    {% else %}
+    model = CustomModel(config)
+    {% endif %}
+    model.to(device)
+
+    criterion = get_criterion(config)
+    optimizer = get_optimizer(model, config)
+
+    # Explicitly initialize metrics clearly here
+    metrics = []
+    {% for m in config.training.metrics %}
+    {% if m.name == "accuracy" %}
+    metrics.append(torchmetrics.Accuracy(**{{ m.params }}))
+    {% elif m.name == "f1_score" %}
+    metrics.append(torchmetrics.F1Score(**{{ m.params }}))
+    {% elif m.name == "recall" %}
+    metrics.append(torchmetrics.Recall(**{{ m.params }}))
+    {% elif m.name == "mean_absolute_error" %}
+    metrics.append(torchmetrics.MeanAbsoluteError(**{{ m.params }}))
+    {% else %}
+    raise NotImplementedError("Unsupported metric: {{ m.name }}")
+    {% endif %}
+    {% endfor %}
+
+    epochs = config["training"]["epochs"]
+    for epoch in range(epochs):
+        train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
+        val_loss, val_acc = evaluate(model, val_loader, criterion, device)
+        print(
+            f"Epoch {epoch+1}/{epochs}: "
+            f"Train Loss={train_loss:.4f}, "
+            f"Train Acc={train_acc:.4f}, "
+            f"Val Loss={val_loss:.4f}, "
+            f"Val Acc={val_acc:.4f}"
+        )
+
+    print("Training done.")
+
+if __name__ == "__main__":
+    import json
+    from pathlib import Path
+    cfg = json.loads(Path("config.json").read_text())
+    main(cfg)
