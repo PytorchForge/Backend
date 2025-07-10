@@ -76,6 +76,78 @@
                     }
                 }
             }
+        },
+        "/generate_inference": {
+            "post": {
+                "summary": "Generate Inference",
+                "operationId": "generate_inference_generate_inference_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InferPayload"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/run_inference": {
+            "post": {
+                "summary": "Inference",
+                "operationId": "inference_run_inference_post",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InferPayload"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {}
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -422,7 +494,7 @@
                     "base_path": {
                         "type": "string",
                         "title": "Base Path",
-                        "default": "/home/haroon/REPOS/Backend/modules"
+                        "default": "/home/haroon/REPOS/backend/modules"
                     }
                 },
                 "type": "object",
@@ -443,6 +515,184 @@
                 },
                 "type": "object",
                 "title": "HTTPValidationError"
+            },
+            "InferPayload": {
+                "properties": {
+                    "base_path": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Base Path"
+                    },
+                    "task": {
+                        "type": "string",
+                        "enum": [
+                            "image",
+                            "text",
+                            "audio"
+                        ],
+                        "title": "Task",
+                        "description": "Type of task for inference"
+                    },
+                    "subtask": {
+                        "type": "string",
+                        "enum": [
+                            "Image Classification",
+                            "Object Detection",
+                            "Image Segmentation",
+                            "Image Generation",
+                            "Text Classification",
+                            "Text Generation",
+                            "Machine Translation",
+                            "Text Summarization",
+                            "Speech Recognition",
+                            "Audio Classification",
+                            "Audio Generation",
+                            "Voice Conversion"
+                        ],
+                        "title": "Subtask",
+                        "description": "Subtask for inference"
+                    },
+                    "model_path": {
+                        "type": "string",
+                        "title": "Model Path",
+                        "description": "Path to the model file"
+                    },
+                    "model_load_method": {
+                        "type": "string",
+                        "enum": [
+                            "torch.load",
+                            "onnx"
+                        ],
+                        "title": "Model Load Method",
+                        "description": "How to load the model"
+                    },
+                    "input_data": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "title": "Input Data",
+                        "description": "List of input data for inference"
+                    },
+                    "input_size": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Input Size"
+                    },
+                    "output_type": {
+                        "type": "string",
+                        "enum": [
+                            "json",
+                            "text",
+                            "image",
+                            "audio",
+                            "multitype"
+                        ],
+                        "title": "Output Type",
+                        "default": "json"
+                    },
+                    "tokenizer_type": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Tokenizer Type"
+                    },
+                    "tokenizer_params": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": true,
+                                "type": "object"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Tokenizer Params"
+                    },
+                    "return_logits": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Return Logits",
+                        "default": false
+                    },
+                    "return_probs": {
+                        "anyOf": [
+                            {
+                                "type": "boolean"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Return Probs",
+                        "default": false
+                    },
+                    "top_k": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Top K"
+                    },
+                    "temperature": {
+                        "anyOf": [
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Temperature"
+                    },
+                    "max_length": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Max Length"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "task",
+                    "subtask",
+                    "model_path",
+                    "model_load_method",
+                    "input_data"
+                ],
+                "title": "InferPayload"
             },
             "LayerDefinition": {
                 "properties": {
