@@ -1,3 +1,5 @@
+import json
+
 def main(config):
     set_seed(config)
     device = get_device(config)
@@ -11,14 +13,14 @@ def main(config):
     {% if config.model.use_pretrained %}
     model = models.{{ config.model.pretrained.name }}(pretrained=True)
     {% else %}
-    model = CustomModel(config)
+    model = CustomModel(...)
     {% endif %}
+
     model.to(device)
 
     criterion = get_criterion(config)
     optimizer = get_optimizer(model, config)
 
-    # Explicitly initialize metrics clearly here
     metrics = []
     {% for m in config.training.metrics %}
     {% if m.name == "accuracy" %}
@@ -34,22 +36,34 @@ def main(config):
     {% endif %}
     {% endfor %}
 
+    criterion = get_criterion(config)
+    optimizer = get_optimizer(model, config)
+
     epochs = config["training"]["epochs"]
+    history = {"epochs": epochs, "training": []}
+
     for epoch in range(epochs):
-        train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
+        train_loss, train_acc = train_one_epoch(
+            model, train_loader, criterion, optimizer, device
+        )
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
+
+        epoch_details = {
+            "epoch": epoch + 1,
+            "train_loss": train_loss,
+            "train_acc": train_acc,
+            "val_loss": val_loss,
+            "val_acc": val_acc
+        }
+        history["training"].append(epoch_details)
+
         print(
             f"Epoch {epoch+1}/{epochs}: "
-            f"Train Loss={train_loss:.4f}, "
-            f"Train Acc={train_acc:.4f}, "
-            f"Val Loss={val_loss:.4f}, "
-            f"Val Acc={val_acc:.4f}"
+            f"Train Loss={train_loss:.4f}, Train Acc={train_acc:.4f}, "
+            f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}"
         )
 
-    print("Training done.")
-
-if __name__ == "__main__":
+    # save final results explicitly clearly 
     import json
-    from pathlib import Path
-    cfg = json.loads(Path("config.json").read_text())
-    main(cfg)
+    Path("results.json").write_text(json.dumps(history, indent=4))
+    print(f"Results explicitly saved at: {Path('results.json').resolve()}") 
