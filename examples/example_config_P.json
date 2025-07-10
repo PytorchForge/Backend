@@ -30,6 +30,7 @@
       "task": "Image Processing",
       "subtask": "Image Classification",
       "dataset": {
+        "name": "imgs",
         "split_type": "include",
         "label_type": "folder-name",
         "label_map": {
@@ -85,15 +86,7 @@
           "weights": "IMAGENET1K_V1"
         }
       },
-      "layers": [
-        {
-          "type": "Linear",
-          "params": {
-            "in_features": 512,
-            "out_features": 2
-          }
-        }
-      ]
+      "layers": null
     },
     "training": {
       "batch_size": 32,
