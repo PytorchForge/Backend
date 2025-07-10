@@ -20,7 +20,7 @@ class AudioRecognitionDataset(Dataset):
         waveform = torchaudio.load(audio_path)[0][:, :self.clip_samples]
         transcript = transcript_path.read_text().strip()
 
-        {% if return_format == 'tuple' %}
+        {% if self.return_format == 'tuple' %}
         return waveform, transcript
         {% elif return_format == 'raw' %}
         return waveform

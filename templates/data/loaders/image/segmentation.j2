@@ -26,7 +26,7 @@ class SegmentationDataset(Dataset):
         image = self.img_transform(Image.open(self.image_paths[idx]).convert("RGB"))
         mask = self.mask_transform(Image.open(self.mask_paths[idx]))[0].long()
 
-        {% if return_format == 'tuple' %}
+       {% if self.return_format == 'tuple' %}
         return image, mask
         {% elif return_format == 'raw' %}
         return image

@@ -42,7 +42,7 @@ class ObjectDetectionDataset(Dataset):
 
         image = self.transform(Image.open(img_path).convert("RGB"))
 
-        {% if return_format == 'tuple' %}
+        {% if self.return_format == 'tuple' %}
         return image, {'boxes': boxes, 'labels': labels}
         {% elif return_format == 'raw' %}
         return image

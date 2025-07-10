@@ -20,7 +20,7 @@ class AudioConversionDataset(Dataset):
         input_audio = torchaudio.load(in_path)[0][:, :self.clip_samples]
         target_audio = torchaudio.load(out_path)[0][:, :self.clip_samples]
 
-        {% if return_format == 'tuple' %}
+        {% if self.return_format == 'tuple' %}
         return input_audio, target_audio
         {% elif return_format == 'raw' %}
         return input_audio

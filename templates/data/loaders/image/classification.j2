@@ -33,7 +33,7 @@ class ImageClassificationDataset(Dataset):
         img_path, label = self.data[idx]
         image = self.transform(Image.open(img_path).convert("RGB"))
 
-        {% if return_format == 'tuple' %}
+        {% if self.return_format == 'tuple' %}
         return image, label
         {% elif return_format == 'raw' %}
         return image

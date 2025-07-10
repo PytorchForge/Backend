@@ -49,7 +49,7 @@ class TextClassificationDataset(Dataset):
         input_ids = enc['input_ids'].squeeze(0)
         attention_mask = enc['attention_mask'].squeeze(0) if self.return_attn_masks else None
 
-        {% if return_format == 'tuple' %}
+        {% if self.return_format == 'tuple' %}
         return (input_ids, label)
         {% elif return_format == 'raw' %}
         return input_ids

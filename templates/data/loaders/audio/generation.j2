@@ -44,7 +44,7 @@ class AudioGenerationDataset(Dataset):
         item['prompt'] = torchaudio.load(audio_path)[0][:, :self.clip_samples]
         {% endif %}
 
-        {% if return_format == 'tuple' %}
+        {% if self.return_format == 'tuple' %}
         return tuple(item.values())
         {% elif return_format == 'raw' %}
         return item['prompt']

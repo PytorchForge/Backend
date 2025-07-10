@@ -37,7 +37,7 @@ class AudioClassificationDataset(Dataset):
         else:
             waveform = waveform[:, :self.clip_samples]
 
-        {% if return_format == 'tuple' %}
+        {% if self.return_format == 'tuple' %}
         return waveform, label
         {% elif return_format == 'raw' %}
         return waveform

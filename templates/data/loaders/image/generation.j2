@@ -37,7 +37,7 @@ class ImageGenerationDataset(Dataset):
         image = self.transform(Image.open(self.data[idx]).convert("RGB"))
         {% endif %}
 
-        {% if return_format == 'tuple' %}
+        {% if self.return_format == 'tuple' %}
         return (prompt, image) if prompt else (image,)
         {% elif return_format == 'raw' %}
         return image
