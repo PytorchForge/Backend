@@ -1,0 +1,26 @@
+# infer.py - Auto-generated for text classification
+import torch
+from transformers import {{ tokenizer_type }}
+import json
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+with open("infer_config.json") as f:
+    config = json.load(f)
+
+model = torch.load(config["model_path"], map_location=device)
+model.eval()
+
+tokenizer = {{ tokenizer_type }}.from_pretrained(config["tokenizer_params"]["pretrained_model"])
+input_data = config["input_data"]
+
+results = []
+for text in input_data:
+    inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length={{ max_length or 128 }})
+    inputs = {k: v.to(device) for k, v in inputs.items()}
+    with torch.no_grad():
+        logits = model(**inputs).logits
+    pred = torch.argmax(logits, dim=-1).item()
+    results.append({"text": text, "predicted_class": pred})
+
+print(json.dumps(results))

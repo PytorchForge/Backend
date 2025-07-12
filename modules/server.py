@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, FileResponse
-from pydantic import BaseModel, Field, model_validator,field_validator
+from pydantic import BaseModel, Field, model_validator
 from subprocess import run as subprocess_run, PIPE
 from pathlib import Path
 import tempfile
@@ -8,7 +8,6 @@ import json
 import os
 import sys
 from typing import Any, Dict, List, Literal, Optional
-
 
 from configs.datasetconfig import DataIOConfig
 from configs.taskconfig import TaskConfig
@@ -18,9 +17,10 @@ from configs.trainconfig import TrainingConfig
 
 app = FastAPI()
 
-DEFAULT_BASE_PATH = Path(__file__).parent # current directory of this script
+DEFAULT_BASE_PATH = Path(__file__).parent
 
 
+# ================== Generate Config Section =====================
 
 class GenerateDataModel(BaseModel):
     data: TaskConfig
@@ -30,7 +30,6 @@ class GenerateDataModel(BaseModel):
     )
     model: ModelConfig
     training: TrainingConfig
-
 
 
 class GeneratePayload(BaseModel):
@@ -46,7 +45,7 @@ async def generate(payload: GeneratePayload):
         return JSONResponse(status_code=400, content={"error": "parser.py not found"})
 
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
-        json.dump(payload.data, temp_config)
+        json.dump(payload.data.dict(), temp_config)
         temp_config.flush()
         temp_config_path = temp_config.name
 
@@ -71,9 +70,11 @@ async def generate(payload: GeneratePayload):
     return FileResponse(generated_path, filename=Path(generated_path).name)
 
 
+# ================== Run Generated Config =====================
 
 class RunPayload(BaseModel):
-    base_path: Optional[str] | None = None  #defaults to current directory
+    base_path: Optional[str] | None = None
+
 
 @app.post("/run")
 async def run(payload: RunPayload):
@@ -106,23 +107,21 @@ async def run(payload: RunPayload):
     return JSONResponse(content=results)
 
 
+# ================== Generate Inference Config =====================
 
 class InferPayload(BaseModel):
     base_path: Optional[str] = None
-    task: Literal["image", "text", "audio"] = Field(..., description="Type of task for inference")
+    task: Literal["image", "text", "audio"]
     subtask: Literal[
         "Image Classification", "Object Detection", "Image Segmentation", "Image Generation",
         "Text Classification", "Text Generation", "Machine Translation", "Text Summarization",
         "Speech Recognition", "Audio Classification", "Audio Generation", "Voice Conversion"
-    ] = Field(..., description="Subtask for inference")
-    
-    model_path: str = Field(..., description="Path to the model file")
-    model_load_method: Literal["torch.load", "onnx"] = Field(..., description="How to load the model")
-
-    input_data: List[str] = Field(..., description="List of input data for inference")
+    ]
+    model_path: str
+    model_load_method: Literal["torch.load", "onnx"]
+    input_data: List[str]
     input_size: Optional[int] = None
     output_type: Literal["json", "text", "image", "audio", "multitype"] = "json"
-
     tokenizer_type: Optional[str] = None
     tokenizer_params: Optional[Dict[str, Any]] = None
     return_logits: Optional[bool] = False
@@ -134,7 +133,7 @@ class InferPayload(BaseModel):
     _note: Optional[str] = "Inference pipeline defaults may not cover all edge cases yet"
 
     @model_validator(mode="after")
-    def set_task_defaults(self) -> "InferPayload":
+    def set_defaults(self) -> "InferPayload":
         if self.task == "text":
             if self.subtask in {"Text Generation", "Machine Translation", "Text Summarization"}:
                 if not self.tokenizer_type:
@@ -154,17 +153,29 @@ class InferPayload(BaseModel):
 
         return self
 
+
 @app.post("/generate_inference")
 async def generate_inference(payload: InferPayload):
     base_path = Path(payload.base_path) if payload.base_path else DEFAULT_BASE_PATH
-    infer_script_path = base_path / "outputs" /"infer.py"
-    if not infer_script_path.is_file():
-        return JSONResponse(status_code=400, content={"error": "infer.py not found"})
+    parser_path = base_path / "inference_parser.py"
+    infer_config_path = base_path / "outputs/infer_config.json"
+
+
+
+
+    # Ensure outputs dir exists
+    infer_config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Save input payload
+    with open(infer_config_path, "w") as f:
+        json.dump(payload.dict(), f)
+
+    if not parser_path.is_file():
+        return JSONResponse(status_code=400, content={"error": "inference_parser.py not found"})
 
     try:
         result = subprocess_run(
-            [sys.executable, str(infer_script_path)],
-            input=payload.json(),
+            [sys.executable, str(parser_path), str(infer_config_path)],
             stdout=PIPE,
             stderr=PIPE,
             text=True,
@@ -177,6 +188,9 @@ async def generate_inference(payload: InferPayload):
         return JSONResponse(content=output)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+# ================== Run Inference Script =====================
 
 @app.post("/run_inference")
 async def inference(payload: InferPayload):
@@ -200,4 +214,3 @@ async def inference(payload: InferPayload):
         return JSONResponse(content=output)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
-    

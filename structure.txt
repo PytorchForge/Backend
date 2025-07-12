@@ -1,0 +1,128 @@
+.
+├── LICENSE
+├── README.md
+├── __init__.py
+├── __pycache__
+│   └── server.cpython-312.pyc
+├── examples
+│   ├── example_config.json
+│   ├── example_config_P.json
+│   └── example_output.py
+├── modules
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-312.pyc
+│   │   ├── __init__.cpython-38.pyc
+│   │   ├── aliases.cpython-312.pyc
+│   │   ├── server.cpython-312.pyc
+│   │   └── server.cpython-38.pyc
+│   ├── aliases.py
+│   ├── configs
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-312.pyc
+│   │   │   ├── __init__.cpython-38.pyc
+│   │   │   ├── datasetconfig.cpython-312.pyc
+│   │   │   ├── datasetconfig.cpython-38.pyc
+│   │   │   ├── modelconfig.cpython-312.pyc
+│   │   │   ├── modelconfig.cpython-38.pyc
+│   │   │   ├── preprocessingconfig.cpython-312.pyc
+│   │   │   ├── preprocessingconfig.cpython-38.pyc
+│   │   │   ├── taskconfig.cpython-312.pyc
+│   │   │   ├── taskconfig.cpython-38.pyc
+│   │   │   ├── trainconfig.cpython-312.pyc
+│   │   │   └── trainconfig.cpython-38.pyc
+│   │   ├── datasetconfig.py
+│   │   ├── modelconfig.py
+│   │   ├── preprocessingconfig.py
+│   │   ├── registries
+│   │   │   ├── __pycache__
+│   │   │   │   ├── layerreg.cpython-312.pyc
+│   │   │   │   ├── layerreg.cpython-38.pyc
+│   │   │   │   ├── lossreg.cpython-312.pyc
+│   │   │   │   ├── lossreg.cpython-38.pyc
+│   │   │   │   ├── metricreg.cpython-312.pyc
+│   │   │   │   ├── metricreg.cpython-38.pyc
+│   │   │   │   ├── modelreg.cpython-312.pyc
+│   │   │   │   ├── modelreg.cpython-38.pyc
+│   │   │   │   ├── optimizerreg.cpython-312.pyc
+│   │   │   │   ├── optimizerreg.cpython-38.pyc
+│   │   │   │   ├── preprocessingreg.cpython-312.pyc
+│   │   │   │   ├── preprocessingreg.cpython-38.pyc
+│   │   │   │   ├── schedulerreg.cpython-312.pyc
+│   │   │   │   ├── schedulerreg.cpython-38.pyc
+│   │   │   │   ├── taskreg.cpython-312.pyc
+│   │   │   │   └── taskreg.cpython-38.pyc
+│   │   │   ├── inference_parser.py
+│   │   │   ├── layerreg.py
+│   │   │   ├── lossreg.py
+│   │   │   ├── metricreg.py
+│   │   │   ├── modelreg.py
+│   │   │   ├── optimizerreg.py
+│   │   │   ├── preprocessingreg.py
+│   │   │   ├── schedulerreg.py
+│   │   │   └── taskreg.py
+│   │   ├── taskconfig.py
+│   │   └── trainconfig.py
+│   ├── main.py
+│   ├── outputs
+│   │   └── infer_config.json
+│   ├── parser.py
+│   ├── server.py
+│   └── test_parser.py
+├── openapi.json
+├── outputs
+│   ├── out.py
+│   ├── out_1.py
+│   ├── out_2.py
+│   ├── out_3.py
+│   ├── out_4.py
+│   └── out_5.py
+├── pyproject.toml
+├── structure.txt
+├── templates
+│   ├── data
+│   │   ├── loaders
+│   │   │   ├── audio
+│   │   │   │   ├── audio_classification.j2
+│   │   │   │   ├── conversion.j2
+│   │   │   │   ├── generation.j2
+│   │   │   │   └── recognition.j2
+│   │   │   ├── image
+│   │   │   │   ├── classification.j2
+│   │   │   │   ├── generation.j2
+│   │   │   │   ├── object_detection.j2
+│   │   │   │   └── segmentation.j2
+│   │   │   └── text
+│   │   │       ├── classification.j2
+│   │   │       ├── generation.j2
+│   │   │       ├── summarisation.j2
+│   │   │       └── translation.j2
+│   │   └── transforms
+│   │       ├── ML.j2
+│   │       ├── audio_processing.j2
+│   │       ├── image.j2
+│   │       └── text.j2
+│   ├── imports.j2
+│   ├── inference
+│   │   ├── audio_classification.j2
+│   │   ├── image_classification.j2
+│   │   └── text_classification.j2
+│   ├── models
+│   │   ├── ML.j2
+│   │   ├── audio_processing.j2
+│   │   ├── image.j2
+│   │   ├── layers.j2
+│   │   └── text.j2
+│   ├── setup.j2
+│   └── train
+│       ├── eval_loop.j2
+│       ├── losses.j2
+│       ├── metrics.j2
+│       ├── monitoring.j2
+│       ├── optimizers.j2
+│       ├── train_loop.j2
+│       └── utils.j2
+└── uv.lock
+
+21 directories, 105 files
