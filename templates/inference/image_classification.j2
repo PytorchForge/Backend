@@ -1,0 +1,35 @@
+import torch
+from torchvision import transforms
+from PIL import Image
+import json
+from pathlib import Path
+
+# Load model
+model = torch.load("{{ model_path }}")
+model.eval()
+
+preprocess = transforms.Compose([
+    transforms.Resize({{ input_size }}),
+    transforms.CenterCrop({{ input_size }}),
+    transforms.ToTensor(),
+])
+
+results = {}
+for file_path in {{ input_data }}:
+    image = Image.open(file_path).convert("RGB")
+    input_tensor = preprocess(image).unsqueeze(0)
+
+    with torch.no_grad():
+        output = model(input_tensor)
+        {% if return_probs %}
+        probs = torch.nn.functional.softmax(output, dim=1)
+        prediction = torch.topk(probs, {{ top_k or 1 }}, dim=1)
+        {% elif return_logits %}
+        prediction = output
+        {% else %}
+        prediction = torch.argmax(output, dim=1)
+        {% endif %}
+    results[file_path] = prediction.tolist()
+
+with open("outputs/results.json", "w") as f:
+    json.dump(results, f)

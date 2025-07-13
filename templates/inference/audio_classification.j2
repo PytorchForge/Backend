@@ -1,0 +1,32 @@
+import torch
+import torchaudio
+import json
+from pathlib import Path
+
+# Load model
+model = torch.load("{{ model_path }}")
+model.eval()
+
+def preprocess_audio(path):
+    waveform, sample_rate = torchaudio.load(path)
+    if sample_rate != {{ input_size }}:
+        waveform = torchaudio.functional.resample(waveform, sample_rate, {{ input_size }})
+    return waveform
+
+results = {}
+for file_path in {{ input_data }}:
+    audio_tensor = preprocess_audio(file_path).unsqueeze(0)
+    with torch.no_grad():
+        output = model(audio_tensor)
+        {% if return_probs %}
+        probs = torch.nn.functional.softmax(output, dim=1)
+        prediction = torch.topk(probs, {{ top_k or 1 }}, dim=1)
+        {% elif return_logits %}
+        prediction = output
+        {% else %}
+        prediction = torch.argmax(output, dim=1)
+        {% endif %}
+    results[file_path] = prediction.tolist()
+
+with open("outputs/results.json", "w") as f:
+    json.dump(results, f)

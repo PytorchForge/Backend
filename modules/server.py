@@ -158,8 +158,7 @@ class InferPayload(BaseModel):
 async def generate_inference(payload: InferPayload):
     base_path = Path(payload.base_path) if payload.base_path else DEFAULT_BASE_PATH
     parser_path = base_path / "inference_parser.py"
-    infer_config_path = base_path / "outputs/infer_config.json"
-
+    infer_config_path = base_path.parent / "outputs/infer_config.json"
 
 
 

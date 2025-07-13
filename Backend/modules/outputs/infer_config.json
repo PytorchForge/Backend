@@ -1,0 +1,1 @@
+{"base_path": "Backend/modules", "task": "image", "subtask": "Image Classification", "model_path": "string", "model_load_method": "torch.load", "input_data": ["string"], "input_size": 0, "output_type": "json", "tokenizer_type": "string", "tokenizer_params": {"additionalProp1": {}}, "return_logits": false, "return_probs": false, "top_k": 0, "temperature": 0.0, "max_length": 0}
