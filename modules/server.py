@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Literal, Optional
 import shutil
 
 
-from configs.datasetconfig import DataIOConfig
+# from configs.datasetconfig import DataIOConfig
 from configs.taskconfig import TaskConfig
 from configs.preprocessingconfig import PreprocessingStep
 from configs.modelconfig import ModelConfig
@@ -25,7 +25,11 @@ print(f"Default base path set to: {DEFAULT_BASE_PATH}")
 
 class GenerateDataModel(BaseModel):
     data: TaskConfig
-    dataloading: DataIOConfig
+    dataloading: str = Field(
+        ...,
+        description="Data loading configuration as a string. This will have the user's custom data loading code."
+    )
+    # dataloading: DataIOConfig
     preprocessing: Optional[List[PreprocessingStep]] = Field(
         None, description="List of preprocessing steps to apply to the data"
     )
@@ -45,20 +49,11 @@ DATASETS_ROOT = DEFAULT_BASE_PATH / Path("/dataset")
 async def generate(payload: GeneratePayload):
     base_path = Path(payload.base_path)
     parser_path = base_path / "parser.py"
-    print(f"Using parser path: {parser_path}")
-    # if not parser_path.is_file():
-    #     return JSONResponse(status_code=400, content={"error": "parser.py not found"})
 
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
         cfg_dict = payload.data.model_dump()
 
-        dataset_name = cfg_dict["dataloading"]["dataset"].get("name")
-        if not dataset_name:
-            return JSONResponse(status_code=400, content={"error": "Dataset name not provided in 'data.dataloading.dataset.name'"})
-
-        full_root_path = DATASETS_ROOT / dataset_name
-
-        cfg_dict["data"]["root"] = str(full_root_path)
+        cfg_dict["dataloading"] = payload.data.dataloading.strip()
 
         json.dump(cfg_dict, temp_config)
         temp_config.flush()

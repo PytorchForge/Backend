@@ -159,20 +159,21 @@ def assemble(cfg):
     normalize_config(cfg)
 
     parts = []
+
     imports_template = resolve_template("imports", cfg)
     parts.append(render_template(imports_template, cfg))
 
-    sections = ["models", "transforms", "loaders"]
-    for sec in sections:
+    for sec in ["models", "transforms"]:
         template_name = resolve_template(sec, cfg)
         parts.append(render_template(template_name, cfg))
 
-    static_templates = [
-        "setup.j2",
-        "train/utils.j2",
-        "train/train_loop.j2",
-        "train/eval_loop.j2"
-    ]
+    # use user code instead of template for loaders
+    dataloading_code = cfg.get("dataloading", "")
+    if dataloading_code:
+        parts.append("# Explicit dataloading code provided by UI:\n\n")
+        parts.append(dataloading_code.strip())
+
+    static_templates = ["setup.j2", "train/utils.j2", "train/train_loop.j2", "train/eval_loop.j2"]
     for template in static_templates:
         if template in env.list_templates():
             parts.append(env.get_template(template).render(config=cfg))
