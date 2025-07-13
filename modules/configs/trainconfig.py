@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from .registries.lossreg import LOSS_REGISTRY
@@ -6,6 +6,13 @@ from .registries.metricreg import METRIC_REGISTRY
 from .registries.optimizerreg import OPTIMIZER_REGISTRY
 from .registries.schedulerreg import SCHEDULER_REGISTRY
 
+MonitoringTool = Literal[
+    "use_tensorboard", 
+    "use_wandb", 
+    "use_mlflow", 
+    "resource_alerts", 
+    "threshold_alerts"
+]
 
 class OptimizerConfig(BaseModel):
     name: str
@@ -62,7 +69,7 @@ class TrainingConfig(BaseModel):
     loss: Optional[LossConfig] = None
     metrics: Optional[List[MetricConfig]] = None
     early_stopping: Optional[EarlyStoppingConfig] = None
-
-    @field_validator("optimizer", "scheduler", "loss", "metrics", "early_stopping", mode="before")
+    monitoring: Optional[List[MonitoringTool]] = Field(default_factory=list)
+    @field_validator("optimizer", "scheduler", "loss", "metrics", "early_stopping","monitoring", mode="before")
     def inject_defaults(cls, v):
         return v or None
