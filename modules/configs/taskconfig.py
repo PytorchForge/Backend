@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator
 
 from .registries.taskreg import DEFAULTS
 
+from .preprocessingconfig import PreprocessingStep
 
 class TaskType(str, Enum):
     ml = "ml"
@@ -19,12 +20,6 @@ class DataFormat(str, Enum):
 class DataType(str, Enum):
     file = "file"
     folder = "folder"
-
-class PreprocessingStep(BaseModel):
-    name: str
-    params: dict
-
-
 
 class TaskConfig(BaseModel):
     task_type: Literal["ml", "dl"]
