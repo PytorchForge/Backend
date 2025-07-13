@@ -20,7 +20,7 @@ from configs.trainconfig import TrainingConfig
 app = FastAPI()
 
 DEFAULT_BASE_PATH = Path(__file__).parent # current directory of this script
-
+print(f"Default base path set to: {DEFAULT_BASE_PATH}")
 
 
 class GenerateDataModel(BaseModel):
@@ -39,14 +39,15 @@ class GeneratePayload(BaseModel):
     base_path: str = str(DEFAULT_BASE_PATH)
 
 
-DATASETS_ROOT = Path("/home/haroon/REPOS/backend/dataset")
+DATASETS_ROOT = DEFAULT_BASE_PATH / Path("/dataset")
 
 @app.post("/generate")
 async def generate(payload: GeneratePayload):
     base_path = Path(payload.base_path)
     parser_path = base_path / "parser.py"
-    if not parser_path.is_file():
-        return JSONResponse(status_code=400, content={"error": "parser.py not found"})
+    print(f"Using parser path: {parser_path}")
+    # if not parser_path.is_file():
+    #     return JSONResponse(status_code=400, content={"error": "parser.py not found"})
 
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
         cfg_dict = payload.data.model_dump()
