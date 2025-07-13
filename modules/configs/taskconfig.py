@@ -5,7 +5,7 @@ from pydantic import BaseModel, field_validator
 
 from .registries.taskreg import DEFAULTS
 
-from .preprocessingconfig import PreprocessingStep
+# from .preprocessingconfig import PreprocessingStep
 
 class TaskType(str, Enum):
     ml = "ml"
@@ -27,9 +27,9 @@ class TaskConfig(BaseModel):
     sub_task: str
     data_format: Optional[DataFormat] = None
     data_type: Optional[DataType] = None
-    preprocessing: Optional[List[PreprocessingStep]] = None
+    # preprocessing: Optional[List[PreprocessingStep]] = None  #duplicate
 
-    @field_validator("data_format", "data_type", "preprocessing", mode="before")
+    @field_validator("data_format", "data_type", mode="before")
     def set_defaults(cls, v, info):
         if v is not None:
             return v

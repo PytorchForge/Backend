@@ -270,6 +270,11 @@
             },
             "DatasetConfig": {
                 "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name",
+                        "default": "default_dataset"
+                    },
                     "split_type": {
                         "type": "string",
                         "enum": [
@@ -459,7 +464,7 @@
                         "anyOf": [
                             {
                                 "items": {
-                                    "$ref": "#/components/schemas/configs__preprocessingconfig__PreprocessingStep"
+                                    "$ref": "#/components/schemas/PreprocessingStep"
                                 },
                                 "type": "array"
                             },
@@ -494,7 +499,7 @@
                     "base_path": {
                         "type": "string",
                         "title": "Base Path",
-                        "default": "/home/haroon/REPOS/backend/modules"
+                        "default": "backend/modules"
                     }
                 },
                 "type": "object",
@@ -803,6 +808,24 @@
                 ],
                 "title": "OptimizerConfig"
             },
+            "PreprocessingStep": {
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "title": "Name"
+                    },
+                    "params": {
+                        "additionalProperties": true,
+                        "type": "object",
+                        "title": "Params"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ],
+                "title": "PreprocessingStep"
+            },
             "PretrainedModel": {
                 "properties": {
                     "name": {
@@ -893,20 +916,6 @@
                                 "type": "null"
                             }
                         ]
-                    },
-                    "preprocessing": {
-                        "anyOf": [
-                            {
-                                "items": {
-                                    "$ref": "#/components/schemas/configs__taskconfig__PreprocessingStep"
-                                },
-                                "type": "array"
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Preprocessing"
                     }
                 },
                 "type": "object",
@@ -1038,43 +1047,6 @@
                     "type"
                 ],
                 "title": "ValidationError"
-            },
-            "configs__preprocessingconfig__PreprocessingStep": {
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    },
-                    "params": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Params"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "name"
-                ],
-                "title": "PreprocessingStep"
-            },
-            "configs__taskconfig__PreprocessingStep": {
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "title": "Name"
-                    },
-                    "params": {
-                        "additionalProperties": true,
-                        "type": "object",
-                        "title": "Params"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "name",
-                    "params"
-                ],
-                "title": "PreprocessingStep"
             }
         }
     }
