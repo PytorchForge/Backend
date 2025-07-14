@@ -60,6 +60,5 @@
       },
       "monitoring": ["use_wandb", "use_mlflow"]
     }
-  },
-  "base_path": null
+  }
 }

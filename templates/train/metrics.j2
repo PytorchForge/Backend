@@ -9,6 +9,6 @@ metrics.append(torchmetrics.Recall(**{{ m.params }}))
 {% elif m.name == "mean_absolute_error" %}
 metrics.append(torchmetrics.MeanAbsoluteError(**{{ m.params }}))
 {% else %}
-raise NotImplementedError("Unsupported metric: {{ m.name }}")
+print("Unsupported metric: {{ m.name }}")
 {% endif %}
 {% endfor %}

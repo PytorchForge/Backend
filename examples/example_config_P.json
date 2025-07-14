@@ -58,6 +58,5 @@
       },
       "monitoring": ["use_tensorboard", "resource_alerts"]
     }
-  },
-  "base_path": null
+  }
 }

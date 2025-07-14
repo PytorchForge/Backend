@@ -1,5 +1,4 @@
-import json
-from pathlib import Path
+
 
 def main():
     with open("config.json") as f:
@@ -11,8 +10,8 @@ def main():
     root = config["data"].get("root", ".")
     batch_size = config["training"]["batch_size"]
 
-    train_loader = get_loader(root=root, batch_size=batch_size, split="train")
-    val_loader = get_loader(root=root, batch_size=batch_size, split="val")
+    train_loader = custom_loader(root=root, batch_size=batch_size, split="train")
+    val_loader = custom_loader(root=root, batch_size=batch_size, split="val")
 
     {% if config.model.use_pretrained %}
     model = models.{{ config.model.pretrained.name }}(pretrained=True)
@@ -68,7 +67,6 @@ def main():
             f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}"
         )
 
-    # Explicitly save results at the end of run
     Path("results.json").write_text(json.dumps(history, indent=4))
 
     print("Training completed. Results are explicitly saved in 'results.json'.")
