@@ -12,6 +12,8 @@ optimizer = torch.optim.RMSprop(model.parameters(), **{{ args }})
 optimizer = torch.optim.Adagrad(model.parameters(), **{{ args }})
 {% elif name == "nadam" %}
 optimizer = torch.optim.NAdam(model.parameters(), **{{ args }})
+{% elif name == "adamw" %}
+optimizer = torch.optim.AdamW(model.parameters(), **{{ args }})
 {% else %}
-raise NotImplementedError("Unsupported optimizer: {{ name }}")
+print("Unsupported optimizer: {{ name }}")
 {% endif %}

@@ -9,7 +9,8 @@ import os
 import sys
 from typing import Any, Dict, List, Literal, Optional
 import shutil
-
+import ast
+import toml
 
 # from configs.datasetconfig import DataIOConfig
 from configs.taskconfig import TaskConfig
@@ -29,7 +30,7 @@ class GenerateDataModel(BaseModel):
         ...,
         description="Data loading configuration as a string. This will have the user's custom data loading code."
     )
-    # dataloading: DataIOConfig
+    # dataloading: DataIOConfig  # incase for future 
     preprocessing: Optional[List[PreprocessingStep]] = Field(
         None, description="List of preprocessing steps to apply to the data"
     )
@@ -45,16 +46,66 @@ class GeneratePayload(BaseModel):
 
 DATASETS_ROOT = DEFAULT_BASE_PATH / Path("/dataset")
 
+
+def parse_imports_from_code(code: str):
+    """Extract imported packages from Python code."""
+    imported_packages = set()
+    tree = ast.parse(code)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imported_packages.add(alias.name.split('.')[0])
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imported_packages.add(node.module.split('.')[0])
+    return imported_packages
+
+# Map imported module names to PyPI package names 
+IMPORT_TO_PACKAGE_MAP = {
+    "PIL": "pillow",
+    "sklearn": "scikit-learn",
+
+}
+def update_pyproject_toml(pyproject_path: Path, packages: set):
+    if not pyproject_path.is_file():
+        # Create minimal PEP 621-compliant structure
+        pyproject_data = {
+            "project": {
+                "dependencies": []
+            }
+        }
+    else:
+        pyproject_data = toml.load(pyproject_path)
+
+    dependencies = set(pyproject_data.get("project", {}).get("dependencies", []))
+    
+    # ignore built-in
+    builtin_packages = {"sys", "os", "json", "logging", "pathlib", "shutil", "tempfile","random", "subprocess", "ast", "typing"}
+    packages -= builtin_packages
+
+    resolved_packages = set()
+    for pkg in packages:
+        resolved_pkg = IMPORT_TO_PACKAGE_MAP.get(pkg, pkg)
+        resolved_packages.add(resolved_pkg)
+
+    existing_dep_names = {dep.split(">=")[0].lower() for dep in dependencies}
+    new_packages = {f"{pkg}>=0" for pkg in resolved_packages if pkg.lower() not in existing_dep_names}
+
+    if new_packages:
+        dependencies.update(new_packages)
+        pyproject_data["project"]["dependencies"] = sorted(dependencies)
+        pyproject_path.parent.mkdir(parents=True, exist_ok=True)
+        toml.dump(pyproject_data, pyproject_path.open("w"))
+
+
 @app.post("/generate")
 async def generate(payload: GeneratePayload):
     base_path = Path(payload.base_path)
     parser_path = base_path / "parser.py"
-
+    
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
         cfg_dict = payload.data.model_dump()
-
         cfg_dict["dataloading"] = payload.data.dataloading.strip()
-
         json.dump(cfg_dict, temp_config)
         temp_config.flush()
         temp_config_path = temp_config.name
@@ -67,25 +118,37 @@ async def generate(payload: GeneratePayload):
             text=True,
             cwd=base_path
         )
+
         if result.returncode != 0:
             return JSONResponse(status_code=500, content={"error": result.stderr})
 
         parser_output = json.loads(result.stdout.strip())
         generated_path = Path(parser_output["generated_path"])
 
+        # Resolve paths
         pyproject_src = base_path.parent / "pyproject.toml"
+        pyproject_dst = generated_path.parent / "pyproject.toml"
+        
+        # copy or touch pyproject.toml
         if pyproject_src.is_file():
-            shutil.copy(pyproject_src, generated_path.parent / "pyproject.toml")
+            shutil.copy(pyproject_src, pyproject_dst)
+        else:
+            pyproject_dst.touch()
 
         dest_config_path = generated_path.parent / "config.json"
         shutil.copy(temp_config_path, dest_config_path)
 
+        # Parse imports and update pyproject.toml
+        generated_code = generated_path.read_text()
+        imported_packages = parse_imports_from_code(generated_code)
+        update_pyproject_toml(pyproject_dst, imported_packages)
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
-
+    
     finally:
         os.unlink(temp_config_path)
-
+    
     return JSONResponse(status_code=200, content={"generated_path": str(generated_path)})
 
 
@@ -121,7 +184,11 @@ async def run(payload: RunPayload):
             subprocess_run(["brew", "install", "uv"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
         except Exception:
             raise RuntimeError("Failed to install uv. install pip or brew first.")
-        subprocess_run([uv, "sync"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
+        
+        try:
+            subprocess_run([uv, "sync"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
+        except Exception:
+            raise RuntimeError("Failed to sync uv environment. Make sure uv is installed correctly.")
         
         exec_result = subprocess_run(
             [python_exec, str(generated_path)],
