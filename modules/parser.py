@@ -1,8 +1,7 @@
 import json
 import argparse
 from pathlib import Path
-from re import M
-from token import OP
+
 import jinja2
 import isort
 import black
