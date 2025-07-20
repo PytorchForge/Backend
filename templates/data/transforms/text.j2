@@ -1,55 +1,20 @@
-{% macro RegexTokenizer(pattern) %}
-RegexTokenizer(
-    pattern={{ pattern }}
-)
-{% endmacro %}
-
-{% macro SentencePieceTokenizer(sp_model) %}
-SentencePieceTokenizer(
-    sp_model={{ sp_model }}
-)
-{% endmacro %}
-
-{% macro VocabTransform(vocab) %}
-VocabTransform(
-    vocab={{ vocab }}
-)
-{% endmacro %}
-
-{% macro ToTensor(dtype) %}
-ToTensor(
-    dtype={{ dtype }}
-)
-{% endmacro %}
-
-{% macro Truncate(max_seq_len) %}
-Truncate(
-    max_seq_len={{ max_seq_len }}
-)
-{% endmacro %}
-
-{% macro PadTransform(max_length, pad_value=0) %}
-PadTransform(
-    max_length={{ max_length }},
-    pad_value={{ pad_value }}
-)
-{% endmacro %}
-
-{% macro AddToken(token, begin) %}
-AddToken(
-    token={{ token }},
-    begin={{ begin }}
-)
-{% endmacro %}
-
-{% macro BARTTokenizer(tokenizer) %}
-BARTTokenizer(
-    tokenizer={{ tokenizer }}
-)
-{% endmacro %}
-
-{% macro LabelToIndex(label_names) %}
-LabelToIndex(
-    label_names={{ label_names }}
-)
-{% endmacro %}
+transforms = [
+{% for transform in config.preprocessing %}
+{% set params = transform.params %}
+{% if transform.name == "RegexTokenizer" %}
+    RegexTokenizer(pattern="{{ params.pattern }}"),
+{% elif transform.name == "SentencePieceTokenizer" %}
+    SentencePieceTokenizer(sp_model="{{ params.sp_model }}"),
+{% elif transform.name == "VocabTransform" %}
+    VocabTransform(vocab={{ params.vocab }}),
+{% elif transform.name == "Truncate" %}
+    Truncate(max_seq_len={{ params.max_seq_len }}),
+{% elif transform.name == "PadTransform" %}
+    PadTransform(max_length={{ params.max_length }}, pad_value={{ params.pad_value | default(0) }}),
+{% elif transform.name == "AddToken" %}
+    AddToken(token="{{ params.token }}", begin={{ params.begin | default(True) | lower }}),
+{% elif transform.name == "ToTensorText" %}
+    ToTensor(dtype={{ params.dtype | default("torch.long") }}),
+{% endif %}
+{% endfor %}
+]

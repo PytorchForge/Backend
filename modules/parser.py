@@ -1,6 +1,8 @@
 import json
 import argparse
 from pathlib import Path
+from re import M
+from token import OP
 import jinja2
 import isort
 import black
@@ -148,12 +150,16 @@ def resolve_template(section, cfg):
 
     return TASK_MAP[section].format(task=task_dir)
 
-def render_template(name, context):
+def render_template(path, context):
     try:
-        tpl = env.get_template(name)
+        template = env.get_template(path)
+        return template.render(config=context, 
+                               METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
+                               OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
+                                LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
+                                LAYER_REGISTRY=layerreg.LAYER_REGISTRY)
     except jinja2.exceptions.TemplateNotFound:
-        raise ValueError(f"Template not found: {name}")
-    return tpl.render(config=context)
+        raise ValueError(f"Template {path} not found.")
 
 def assemble(cfg):
     normalize_config(cfg)
@@ -163,14 +169,17 @@ def assemble(cfg):
     imports_template = resolve_template("imports", cfg)
     parts.append(render_template(imports_template, cfg))
 
-    for sec in ["models", "transforms"]:
-        template_name = resolve_template(sec, cfg)
-        parts.append(render_template(template_name, cfg))
+    
+    template_name = resolve_template("models", cfg)
+    parts.append(render_template(template_name, cfg))
+
+    template_name = resolve_template("transforms", cfg)
+    rendered_transforms = render_template(template_name, cfg).strip()
+    parts.append(rendered_transforms) 
 
     # use user code instead of template for loaders
     dataloading_code = cfg.get("dataloading", "")
     if dataloading_code:
-        parts.append("# Explicit dataloading code provided by UI:\n\n")
         parts.append(dataloading_code.strip())
 
     static_templates = ["setup.j2", "train/utils.j2", "train/train_loop.j2", "train/eval_loop.j2"]
@@ -180,9 +189,18 @@ def assemble(cfg):
 
     if "monitoring.j2" in env.list_templates():
         parts.append(env.get_template("train/monitoring.j2").render(config=cfg))
+    
+    if "optimizers.j2" in env.list_templates():
+        parts.append(env.get_template("train/optimizers.j2").render(config=cfg))
 
+    if "losses.j2" in env.list_templates():
+        parts.append(env.get_template("train/losses.j2").render(config=cfg))
+
+    if "metrics.j2" in env.list_templates():
+        parts.append(env.get_template("train/metrics.j2").render(config=cfg,METRIC_REGISTRY=metricreg.METRIC_REGISTRY))
+        
     if "runner.j2" in env.list_templates():
-        parts.append(env.get_template("runner.j2").render(config=cfg))
+        parts.append(env.get_template("runner.j2").render(config=cfg,METRIC_REGISTRY=metricreg.METRIC_REGISTRY))
 
     return "\n\n".join(parts)
 

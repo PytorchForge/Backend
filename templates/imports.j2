@@ -6,14 +6,14 @@ import json
 
 {% if config.data.data_format == "imagefolder" %}
 from PIL import Image
-from torchvision import transforms
+from torchvision import transforms as T
 {% endif %}
 
 from torch.utils.data import DataLoader, Dataset
 
 {% if config.model.use_pretrained %}
 from torchvision import models
-from torchvision import transforms 
+from torchvision import transforms as T
 {% endif %}
 
 import torch.nn as nn
@@ -27,7 +27,7 @@ import torchmetrics
 {% set main_task = config.data.main_task.lower() %}
 {% if "audio" in main_task %}
 import torchaudio
-import torchaudio.transforms as audio_transforms
+import torchaudio.transforms  as T
 {% endif %}
 
 {% if "text" in main_task %}

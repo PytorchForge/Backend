@@ -12,6 +12,7 @@ criterion = torch.nn.BCEWithLogitsLoss(**{{ args }})
 criterion = torch.nn.MSELoss(**{{ args }})
 {% elif name == "l1" %}
 criterion = torch.nn.L1Loss(**{{ args }})
+
 {% else %}
-raise NotImplementedError("Unsupported loss: {{ name }}")
+print("Unsupported loss: {{ name }}")
 {% endif %}

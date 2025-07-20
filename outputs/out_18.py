@@ -11,7 +11,6 @@ from PIL import Image
 from torch.utils.data import DataLoader, Dataset
 from torchvision import models, transforms
 
-# Explicit dataloading code provided by UI:
 
 
 def custom_loader(path):
