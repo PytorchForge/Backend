@@ -134,4 +134,6 @@
         kernel_size={{ kernel_size }}, stride={{ stride | default(1) }},
         padding={{ padding | default(0) }}, dilation={{ dilation | default(1) }}
     )
+{% else %}
+print("Unsupported model type: {{ model_type }}")
 {% endif %}

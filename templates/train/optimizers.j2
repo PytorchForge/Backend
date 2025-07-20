@@ -1,19 +1,48 @@
-# Optimizer definition
-{% set name = config.training.optimizer.name %}
-{% set args = config.training.optimizer.params %}
-
-{% if name == "adam" %}
-optimizer = torch.optim.Adam(model.parameters(), **{{ args }})
-{% elif name == "sgd" %}
-optimizer = torch.optim.SGD(model.parameters(), **{{ args }})
-{% elif name == "rmsprop" %}
-optimizer = torch.optim.RMSprop(model.parameters(), **{{ args }})
-{% elif name == "adagrad" %}
-optimizer = torch.optim.Adagrad(model.parameters(), **{{ args }})
-{% elif name == "nadam" %}
-optimizer = torch.optim.NAdam(model.parameters(), **{{ args }})
-{% elif name == "adamw" %}
-optimizer = torch.optim.AdamW(model.parameters(), **{{ args }})
+{% set opt = config.training.optimizer %}
+{% if opt.name == 'Adam' %}
+optimizer = torch.optim.Adam(
+  model.parameters(),
+  lr={{ opt.params.lr | default(0.001) }},
+  betas={{ opt.params.betas | default([0.9, 0.999]) }},
+  eps={{ opt.params.eps | default(1e-8) }},
+  weight_decay={{ opt.params.weight_decay | default(0) }},
+  amsgrad={{ 'True' if opt.params.amsgrad else 'False' if 'amsgrad' in opt.params else '' }}
+)
+{% elif opt.name == 'SGD' %}
+optimizer = torch.optim.SGD(
+  model.parameters(),
+  lr={{ opt.params.lr | default(0.001) }},
+  momentum={{ opt.params.momentum | default(0) }},
+  weight_decay={{ opt.params.weight_decay | default(0) }},
+  dampening={{ opt.params.dampening | default(0) }},
+  nesterov={{ 'True' if opt.params.nesterov else 'False' if 'nesterov' in opt.params else '' }}
+)
+{% elif opt.name == 'RMSprop' %}
+optimizer = torch.optim.RMSprop(
+  model.parameters(),
+  lr={{ opt.params.lr | default(0.01) }},
+  alpha={{ opt.params.alpha | default(0.99) }},
+  eps={{ opt.params.eps | default(1e-8) }},
+  weight_decay={{ opt.params.weight_decay | default(0) }},
+  momentum={{ opt.params.momentum | default(0) }},
+  centered={{ 'True' if opt.params.centered else 'False' if 'centered' in opt.params else '' }}
+)
+{% elif opt.name == 'Adagrad' %}
+optimizer = torch.optim.Adagrad(
+  model.parameters(),
+  lr={{ opt.params.lr | default(0.01) }},
+  lr_decay={{ opt.params.lr_decay | default(0) }},
+  weight_decay={{ opt.params.weight_decay | default(0) }},
+  initial_accmulator_value={{ opt.params.initial_accumulator | default(0) }}
+)
+{% elif opt.name == 'NAdam' %}
+optimizer = torch.optim.NAdam(
+  model.parameters(),
+  lr={{ opt.params.lr | default(0.002) }},
+  betas={{ opt.params.betas | default([0.9, 0.999]) }},
+  eps={{ opt.params.eps | default(1e-8) }},
+  weight_decay={{ opt.params.weight_decay | default(0) }}
+)
 {% else %}
-print("Unsupported optimizer: {{ name }}")
+raise ValueError("Unsupported optimizer: {{ opt.name }}")
 {% endif %}

@@ -1,18 +1,40 @@
-# Loss function definition
-{% set name = config.training.loss.name %}
-{% set args = config.training.loss.params %}
-
-{% if name == "cross_entropy" %}
-criterion = torch.nn.CrossEntropyLoss(**{{ args }})
-{% elif name == "bce" %}
-criterion = torch.nn.BCELoss(**{{ args }})
-{% elif name == "bce_with_logits" %}
-criterion = torch.nn.BCEWithLogitsLoss(**{{ args }})
-{% elif name == "mse" %}
-criterion = torch.nn.MSELoss(**{{ args }})
-{% elif name == "l1" %}
-criterion = torch.nn.L1Loss(**{{ args }})
-
+{% set loss = config.training.loss %}
+{% if loss.name == 'CrossEntropyLoss' %}
+criterion = torch.nn.CrossEntropyLoss(
+  weight={{ loss.params.weight | default('None') }},
+  size_average={{ 'True' if loss.params.size_average else 'False' if 'size_average' in loss.params else 'None' }},
+  ignore_index={{ loss.params.ignore_index | default(-100) }},
+  reduce={{ 'True' if loss.params.reduce else 'False' if 'reduce' in loss.params else 'None' }},
+  reduction='{{ loss.params.reduction | default("mean") }}',
+  label_smoothing={{ loss.params.label_smoothing | default(0.0) }}
+)
+{% elif loss.name == 'BCELoss' %}
+criterion = torch.nn.BCELoss(
+  weight={{ loss.params.weight | default('None') }},
+  size_average={{ 'True' if loss.params.size_average else 'False' if 'size_average' in loss.params else 'None' }},
+  reduce={{ 'True' if loss.params.reduce else 'False' if 'reduce' in loss.params else 'None' }},
+  reduction='{{ loss.params.reduction | default("mean") }}'
+)
+{% elif loss.name == 'BCEWithLogitsLoss' %}
+criterion = torch.nn.BCEWithLogitsLoss(
+  weight={{ loss.params.weight | default('None') }},
+  size_average={{ 'True' if loss.params.size_average else 'False' if 'size_average' in loss.params else 'None' }},
+  reduce={{ 'True' if loss.params.reduce else 'False' if 'reduce' in loss.params else 'None' }},
+  reduction='{{ loss.params.reduction | default("mean") }}',
+  pos_weight={{ loss.params.pos_weight | default('None') }}
+)
+{% elif loss.name == 'MSELoss' %}
+criterion = torch.nn.MSELoss(
+  size_average={{ 'True' if loss.params.size_average else 'False' if 'size_average' in loss.params else 'None' }},
+  reduce={{ 'True' if loss.params.reduce else 'False' if 'reduce' in loss.params else 'None' }},
+  reduction='{{ loss.params.reduction | default("mean") }}'
+)
+{% elif loss.name == 'L1Loss' %}
+criterion = torch.nn.L1Loss(
+  size_average={{ 'True' if loss.params.size_average else 'False' if 'size_average' in loss.params else 'None' }},
+  reduce={{ 'True' if loss.params.reduce else 'False' if 'reduce' in loss.params else 'None' }},
+  reduction='{{ loss.params.reduction | default("mean") }}'
+)
 {% else %}
-print("Unsupported loss: {{ name }}")
+raise ValueError("Unsupported loss: {{ loss.name }}")
 {% endif %}

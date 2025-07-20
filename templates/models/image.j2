@@ -1,17 +1,24 @@
-{% if model_name == "ResNet" %}
-ResNet(
-    pretrained={{ pretrained }},
+{% set model_name = config.model.pretrained.name %}
+
+{% if model_name == "ResNet18"  %}
+model = models.ResNet18(
+    pretrained=True,
     num_classes={{ num_classes|default(1000) }},
-    replace_stride_with_dilation={{ replace_stride_with_dilation }}
 )
+{% elif model_name == "ResNet50" %}
+model = models.ResNet50(
+    pretrained=True,
+    num_classes={{ num_classes|default(1000) }},
+)
+
 {% elif model_name == "EfficientNet" %}
-EfficientNet(
+model = models.EfficientNet(
     width_mult={{ width_mult }},
     depth_mult={{ depth_mult }},
     dropout={{ dropout }}
 )
 {% elif model_name == "VisionTransformer" %}
-VisionTransformer(
+model = models.VisionTransformer(
     image_size={{ image_size }},
     patch_size={{ patch_size }},
     num_layers={{ num_layers }},
@@ -19,20 +26,22 @@ VisionTransformer(
     hidden_dim={{ hidden_dim }}
 )
 {% elif model_name == "FasterRCNN" %}
-FasterRCNN(
+model = models.FasterRCNN(
     backbone={{ backbone }},
     num_classes={{ num_classes }},
     min_size={{ min_size }},
     max_size={{ max_size }}
 )
 {% elif model_name == "MaskRCNN" %}
-MaskRCNN(
+model = models.MaskRCNN(
     box_detections_per_img={{ box_detections_per_img }}
 )
 {% elif model_name == "DeepLabV3" %}
-DeepLabV3(
+model = models.DeepLabV3(
     backbone='{{ backbone }}',
     atrous_rates={{ atrous_rates }},
     num_classes={{ num_classes }}
 )
+{% else %}
+print("Unsupported model type: {{ model_name }}")
 {% endif %}

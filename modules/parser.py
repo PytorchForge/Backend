@@ -5,6 +5,7 @@ from pathlib import Path
 import jinja2
 import isort
 import black
+from thefuzz import process
 
 from configs.registries import (
     optimizerreg,
@@ -12,12 +13,6 @@ from configs.registries import (
     metricreg,
     layerreg,
     modelreg,
-    aliasreg
-)
-from configs.registries.preprocessingreg import (
-    AUDIO_TRANSFORMS,
-    IMAGE_TRANSFORMS,
-    TEXT_TRANSFORMS
 )
 
 REGISTRY_MAP = {
@@ -27,6 +22,15 @@ REGISTRY_MAP = {
     "layers": layerreg.LAYER_REGISTRY,
     "models": modelreg.PRETRAINED_MODEL_REGISTRY,
 }
+
+def fuzzy_match(query: str, choices: list[str], threshold: int = 75) -> str:
+    """
+    only with variation of Case like "input_dim or inputDim"or contraction "mfcc or MFCC"
+    """
+    matched, score = process.extractOne(query, choices)
+    if score >= threshold:
+        return matched
+    raise ValueError(f"No suitable match for '{query}'. Closest match was '{matched}' with a score of {score}.")
 
 def setup_environment():
     base = Path(__file__).parent.parent
@@ -51,155 +55,101 @@ TASK_MAP = {
 
 DEFAULT_OUTPUT = Path(__file__).parent.parent / "outputs" / "out.py"
 
-def resolve_backend_name(category: str, ui_name: str):
-    return aliasreg.UI_ALIASES.get(category, {}).get(ui_name.lower(), ui_name)
-
-def inject_registry_defaults(category: str, backend_name: str, current_params: dict):
-    defaults = REGISTRY_MAP.get(category, {}).get(backend_name, {})
-    for param, default in defaults.items():
-        current_params.setdefault(param, default)
-
-def normalize_training_config(training_config: dict):
-    for key in ["optimizer", "loss"]:
-        if training_config.get(key):
-            current = training_config[key]
-            backend_name = resolve_backend_name(f"{key}s", current["name"])
-            current["name"] = backend_name
-            current.setdefault("params", {})
-            inject_registry_defaults(f"{key}s", backend_name, current["params"])
-
-    for metric in training_config.get("metrics", []):
-        backend_metric_name = resolve_backend_name("metrics", metric["name"])
-        metric["name"] = backend_metric_name
-        metric.setdefault("params", {})
-        inject_registry_defaults("metrics", backend_metric_name, metric["params"])
-
-def normalize_model_config(model_cfg: dict):
-    if model_cfg.get("use_pretrained") and model_cfg.get("pretrained"):
-        ui_name = model_cfg["pretrained"]["name"]
-        backend_name = resolve_backend_name("models", ui_name)
-        model_cfg["pretrained"]["name"] = backend_name
-        model_cfg["pretrained"].setdefault("params", {})
-        inject_registry_defaults("models", backend_name, model_cfg["pretrained"]["params"])
-
-    elif model_cfg.get("layers"):
-        for layer in model_cfg["layers"]:
-            ui_name = layer["type"]
-            backend_name = resolve_backend_name("layers", ui_name)
-            layer["type"] = backend_name
-            layer.setdefault("params", {})
-            inject_registry_defaults("layers", backend_name, layer["params"])
-
-def normalize_data_config(data_cfg: dict):
-    sub_task_ui = data_cfg.get("sub_task")
-    data_format_ui = data_cfg.get("data_format")
-
-    data_cfg["sub_task"] = resolve_backend_name("subtasks", sub_task_ui)
-    data_cfg["data_format"] = resolve_backend_name("data_formats", data_format_ui)
-
-def normalize_preprocessing(preprocessing_steps: list, main_task: str):
-    task_key = main_task.strip().lower()
-
-    if task_key in ["audio processing", "audio"]:
-        registry = AUDIO_TRANSFORMS
-    elif task_key in ["text processing", "text"]:
-        registry = TEXT_TRANSFORMS
-    elif task_key in ["image processing", "image"]:
-        registry = IMAGE_TRANSFORMS
-    else:
-        raise ValueError(f"No transforms registry found for main_task: {main_task}")
-
-    for step in preprocessing_steps:
-        ui_name = step["name"]
-        backend_name = resolve_backend_name("transforms", ui_name)
-        step["name"] = backend_name
-        step.setdefault("params", {})
-        inject_defaults_from_registry(step["params"], registry, backend_name)
-
-def inject_defaults_from_registry(params: dict, registry: dict, backend_name: str):
-    defaults = registry.get(backend_name)
-    if defaults is None:
-        raise ValueError(f"No defaults found in registry for transform: {backend_name}")
-    for param, default in defaults.items():
-        params.setdefault(param, default)
-
-def normalize_config(cfg: dict):
-    main_task = cfg.get("data", {}).get("main_task", "")
-    normalize_data_config(cfg.get("data", {}))
-    normalize_training_config(cfg.get("training", {}))
-    normalize_model_config(cfg.get("model", {}))
-    
-    if preprocessing_cfg := cfg.get("preprocessing"):
-        normalize_preprocessing(preprocessing_cfg, main_task)
-
 def read_config(path):
     return json.loads(Path(path).read_text())
 
-def resolve_template(section, cfg):
-    task_dir = cfg["data"]["main_task"].lower().split()[0]
-    subtask_dir = cfg["data"]["sub_task"].lower()
+def auto_resolve_name(category: str, provided_name: str) -> str:
+    registry = REGISTRY_MAP.get(category)
+    if not registry:
+        raise ValueError(f"No registry found for category '{category}'.")
+    return fuzzy_match(provided_name, list(registry.keys()))
 
-    subtask_dir = resolve_backend_name("subtasks", subtask_dir)
+def normalize_names(cfg: dict):
+    training = cfg.get("training", {})
+
+    if optimizer := training.get("optimizer"):
+        optimizer["name"] = auto_resolve_name("optimizers", optimizer["name"])
+
+    if loss := training.get("loss"):
+        loss["name"] = auto_resolve_name("losses", loss["name"])
+
+    for metric in training.get("metrics", []):
+        metric["name"] = auto_resolve_name("metrics", metric["name"])
+
+    model_cfg = cfg.get("model", {})
+    if pretrained := model_cfg.get("pretrained", {}):
+        pretrained["name"] = auto_resolve_name("models", pretrained["name"])
+    elif layers := model_cfg.get("layers", []):
+        for layer in layers:
+            layer["type"] = auto_resolve_name("layers", layer["type"])
+
+def resolve_template(section, cfg):
+    task_available = ["audio", "video", "image", "text", "tabular"]
+    subtask_available = ["classification", "regression", "generation"]
+
+    task_ui = cfg["data"]["main_task"].split()[0]
+    subtask_ui = cfg["data"]["sub_task"]
+
+    task_dir = fuzzy_match(task_ui, task_available)
+    subtask_dir = fuzzy_match(subtask_ui, subtask_available)
 
     if section == "models" and cfg.get("model", {}).get("modelType") == "custom":
         return TASK_MAP["custom_model"]
-    
     if section == "loaders":
         return TASK_MAP[section].format(task=task_dir, subtask=subtask_dir)
-
     return TASK_MAP[section].format(task=task_dir)
 
 def render_template(path, context):
     try:
         template = env.get_template(path)
-        return template.render(config=context, 
-                               METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
-                               OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
-                                LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
-                                LAYER_REGISTRY=layerreg.LAYER_REGISTRY)
+        return template.render(
+            config=context,
+            METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
+            OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
+            LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
+            LAYER_REGISTRY=layerreg.LAYER_REGISTRY
+        )
     except jinja2.exceptions.TemplateNotFound:
         raise ValueError(f"Template {path} not found.")
 
 def assemble(cfg):
-    normalize_config(cfg)
+    normalize_names(cfg)
 
     parts = []
 
     imports_template = resolve_template("imports", cfg)
     parts.append(render_template(imports_template, cfg))
 
-    
-    template_name = resolve_template("models", cfg)
-    parts.append(render_template(template_name, cfg))
+    model_template = resolve_template("models", cfg)
+    parts.append(render_template(model_template, cfg))
 
-    template_name = resolve_template("transforms", cfg)
-    rendered_transforms = render_template(template_name, cfg).strip()
-    parts.append(rendered_transforms) 
+    transforms_template = resolve_template("transforms", cfg)
+    parts.append(render_template(transforms_template, cfg).strip())
 
-    # use user code instead of template for loaders
-    dataloading_code = cfg.get("dataloading", "")
-    if dataloading_code:
+    if dataloading_code := cfg.get("dataloading"):
         parts.append(dataloading_code.strip())
 
-    static_templates = ["setup.j2", "train/utils.j2", "train/train_loop.j2", "train/eval_loop.j2"]
+    static_templates = [
+        "setup.j2",
+        "train/utils.j2",
+        "train/train_loop.j2",
+        "train/eval_loop.j2",
+        "train/monitoring.j2",
+        "train/optimizers.j2",
+        "train/losses.j2",
+        "train/metrics.j2",
+        "runner.j2",
+    ]
+
     for template in static_templates:
         if template in env.list_templates():
-            parts.append(env.get_template(template).render(config=cfg))
-
-    if "monitoring.j2" in env.list_templates():
-        parts.append(env.get_template("train/monitoring.j2").render(config=cfg))
-    
-    if "optimizers.j2" in env.list_templates():
-        parts.append(env.get_template("train/optimizers.j2").render(config=cfg))
-
-    if "losses.j2" in env.list_templates():
-        parts.append(env.get_template("train/losses.j2").render(config=cfg))
-
-    if "metrics.j2" in env.list_templates():
-        parts.append(env.get_template("train/metrics.j2").render(config=cfg,METRIC_REGISTRY=metricreg.METRIC_REGISTRY))
-        
-    if "runner.j2" in env.list_templates():
-        parts.append(env.get_template("runner.j2").render(config=cfg,METRIC_REGISTRY=metricreg.METRIC_REGISTRY))
+            parts.append(env.get_template(template).render(
+                config=cfg,
+                METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
+                OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
+                LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
+                LAYER_REGISTRY=layerreg.LAYER_REGISTRY
+            ))
 
     return "\n\n".join(parts)
 
@@ -211,20 +161,16 @@ def write_output(code: str, output_path: Path):
     output_path.write_text(code)
 
 def get_output_path(user_path: str = None) -> Path:
-    if user_path:
-        return Path(user_path)
-    path = DEFAULT_OUTPUT
+    path = Path(user_path) if user_path else DEFAULT_OUTPUT
     if path.exists():
         idx = 1
-        while True:
-            candidate = path.with_name(f"{path.stem}_{idx}{path.suffix}")
-            if not candidate.exists():
-                return candidate
+        while (candidate := path.with_name(f"{path.stem}_{idx}{path.suffix}")).exists():
             idx += 1
+        return candidate
     return path
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate code from templates.")
+    parser = argparse.ArgumentParser(description="Generate code from fuzzy-matched templates.")
     parser.add_argument("config", help="Path to config JSON")
     parser.add_argument("--output", help="Optional output path for generated code")
     args = parser.parse_args()
@@ -234,8 +180,7 @@ def main():
     out_path = get_output_path(args.output)
     write_output(code, out_path)
 
-    results = {"generated_path": str(out_path.resolve())}
-    print(json.dumps(results))
+    print(json.dumps({"generated_path": str(out_path.resolve())}))
 
 if __name__ == "__main__":
     main()
