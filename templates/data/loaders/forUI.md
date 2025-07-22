@@ -1,10 +1,14 @@
+# loaders to show in UI
 
-# audio
-"""
+- the disclaimers is to be same for all subtasks.
+
+## audio
+
+```"""
 DISCLAIMER:
 
 This dataset loader script is provided as an example. 
-It assumes a specific directory structure, file formats and preprocessing steps. 
+It assumes a specific directory structure, file formats and preprocessing steps.
 You will likely need to adjust it for your specific use case.
 
 Typical items you may customize include:
@@ -13,7 +17,7 @@ Typical items you may customize include:
 - File formats and extensions (e.g., .wav, .mp3)
 - Labeling scheme and logic
 - Audio sampling rates, durations, and processing steps
-- Transforms passed via the `transforms` parameter
+- Transforms passed via the transforms parameter
 - Return structure of data: "dict", "tuple", or "raw"
 
 Make sure to install and import the necessary packages 
@@ -21,13 +25,12 @@ such as torchaudio, torch, torchvision, etc. before running.
 
 Always verify the loader behavior with your own dataset structure and preprocess needs.
 """
+```
 
+## 1. Audio Classification
 
-1. Audioclassif
-
-
-
-`class AudioClassificationDataset(Dataset):
+```python
+class AudioClassificationDataset(Dataset):
     def __init__(self, root, split="train", duration=5.0, label_type="folder-name",
                  label_map=None, return_format="dict", transforms=None):
         self.root = Path(root) / split
@@ -85,15 +88,15 @@ Always verify the loader behavior with your own dataset structure and preprocess
         else:
             return {'audio': waveform, 'label': label}
 
-def get_loader(root, batch_size=16, split='train', shuffle=True, transforms=None, **kwargs):
+def get_audio_classification_loader(root, batch_size=16, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = AudioClassificationDataset(root=root, split=split, transforms=transforms, **kwargs)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)`
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+```
 
+## 2. Audio Conversion
 
-
-2. audiocoinversion
-
-`class AudioConversionDataset(Dataset):
+```python
+class AudioConversionDataset(Dataset):
     def __init__(self, root, split="train", duration=5.0, return_format="dict", transforms=None):
         self.root = Path(root) / split
         self.sample_rate = 16000
@@ -138,13 +141,15 @@ def get_loader(root, batch_size=16, split='train', shuffle=True, transforms=None
         else:
             return waveform[:, :self.clip_samples]
 
-def get_loader(root, batch_size=4, split='train', shuffle=True, transforms=None, **kwargs):
+def get_audio_conversion_loader(root, batch_size=4, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = AudioConversionDataset(root=root, split=split, transforms=transforms, **kwargs)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)`
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+```
 
-3. audiogenration
+## 3. Audio Generation
 
-`class AudioGenerationDataset(Dataset):
+```python
+class AudioGenerationDataset(Dataset):
     def __init__(
         self,
         root,
@@ -227,14 +232,14 @@ def get_loader(root, batch_size=4, split='train', shuffle=True, transforms=None,
         else:
             return item
 
-def get_loader(root, batch_size=8, split='train', shuffle=True, transforms=None, **kwargs):
+def get_audio_generation_loader(root, batch_size=8, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = AudioGenerationDataset(root=root, split=split, transforms=transforms, **kwargs)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)`
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+```
 
+## image
 
-# image 
-
-"""
+```"""
 DISCLAIMER:
 
 This dataset loader script is a starting template and likely needs 
@@ -255,10 +260,12 @@ are installed and imported.
 Always thoroughly verify data loading and preprocessing for correctness 
 before actual training or evaluation.
 """
+```
 
-1. classif
+## 1. Image Classification
 
-`class ImageClassificationDataset(Dataset):
+```python
+class ImageClassificationDataset(Dataset):
     def __init__(self, root, split="train", return_format="dict", label_map=None, transforms=None):
         self.root = Path(root) / split
         self.return_format = return_format
@@ -297,13 +304,15 @@ before actual training or evaluation.
         else:
             return {'image': image, 'label': label}
 
-def get_loader(root, batch_size=32, split='train', shuffle=True, transforms=None, **kwargs):
+def get_image_classification_loader(root, batch_size=32, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = ImageClassificationDataset(root=root, split=split, transforms=transforms, **kwargs)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)`
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+```
 
-2. gen
+## 2. Image Generation
 
-`class ImageGenerationDataset(Dataset):
+```python
+class ImageGenerationDataset(Dataset):
     def __init__(self, root, split="train", return_format="dict", text_pair=True, transforms=None):
         self.root = Path(root) / split
         self.return_format = return_format
@@ -347,13 +356,15 @@ def get_loader(root, batch_size=32, split='train', shuffle=True, transforms=None
         else:
             return item
 
-def get_loader(root, batch_size=16, split='train', shuffle=True, transforms=None, **kwargs):
+def get_image_generation_loader(root, batch_size=16, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = ImageGenerationDataset(root=root, split=split, transforms=transforms, **kwargs)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)`
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+```
 
-3. obj
+## 3. Object Detection
 
-`class ObjectDetectionDataset(Dataset):
+```python
+class ObjectDetectionDataset(Dataset):
     def __init__(self, root, split="train", return_format="dict", label_map=None, transforms=None):
         self.root = Path(root) / split
         self.return_format = return_format
@@ -396,14 +407,16 @@ def get_loader(root, batch_size=16, split='train', shuffle=True, transforms=None
         else:
             return {'image': image, **target}
 
-def get_loader(root, batch_size=4, split='train', shuffle=True, transforms=None, **kwargs):
+def get_object_detection_loader(root, batch_size=4, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = ObjectDetectionDataset(root=root, split=split, transforms=transforms, **kwargs)
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, 
-                      collate_fn=lambda x: tuple(zip(*x)))`
+                      collate_fn=lambda x: tuple(zip(*x)))
+```
 
-4. segment
+## 4. Segmentation
 
-`class SegmentationDataset(Dataset):
+```python
+class SegmentationDataset(Dataset):
     def __init__(self, root, split="train", return_format="dict", transforms=None):
         self.root = Path(root) / split
         self.return_format = return_format
@@ -438,14 +451,14 @@ def get_loader(root, batch_size=4, split='train', shuffle=True, transforms=None,
         else:
             return {'image': image, 'mask': mask}
 
-def get_loader(root, batch_size=8, split='train', shuffle=True, transforms=None, **kwargs):
+def get_segmentation_loader(root, batch_size=8, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = SegmentationDataset(root=root, split=split, transforms=transforms, **kwargs)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)`
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+```
 
+## text
 
-# text
-
-"""
+```"""
 DISCLAIMER:
 
 This text dataset loader script serves as a starting template. 
@@ -459,15 +472,14 @@ Areas requiring special attention are usually:
 - Maximum text lengths, padding rules, and truncation strategies
 - Additional preprocessing or data transformations via the "transforms" parameter.
 
-Install all necessary libraries (`torch`, `transformers`, etc.) before using.
-
-Always test thoroughly with your specific dataset and verify correctness of preprocessing.
+Always test thoroughly with your specific dataset.
 """
+```
 
+## 1. Text Classification
 
-1. classif
-
-`class TextClassificationDataset(Dataset):
+```python
+class TextClassificationDataset(Dataset):
     def __init__(self, root, split="train", tokenizer_name="bert-base-uncased",
                  max_length=512, return_format="dict", label_map=None, transforms=None):
         self.root = Path(root) / split
@@ -501,13 +513,15 @@ Always test thoroughly with your specific dataset and verify correctness of prep
         else:
             return item
 
-def get_loader(root, batch_size=32, split='train', shuffle=True, transforms=None, **kwargs):
+def get_text_classification_loader(root, batch_size=32, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = TextClassificationDataset(root, split, transforms=transforms, **kwargs)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)`
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+```
 
-2. gen
+## 2. Text Generation
 
-`class TextGenerationDataset(Dataset):
+```python
+class TextGenerationDataset(Dataset):
     def __init__(self, root, split="train", tokenizer_name="gpt2",
                  max_length=512, return_format="dict", text_pair=False, transforms=None):
         self.root = Path(root) / split
@@ -540,13 +554,15 @@ def get_loader(root, batch_size=32, split='train', shuffle=True, transforms=None
         }
         return format_handlers.get(self.return_format, lambda x:x)(item)
 
-def get_loader(root, batch_size=8, split='train', shuffle=True, transforms=None, **kwargs):
+def get_text_generation_loader(root, batch_size=8, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = TextGenerationDataset(root, split, transforms=transforms, **kwargs)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)`
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+```
 
-3. summarise/translate
+## 3. Text Pair (Summarization/Translation)
 
-`class TextPairDataset(Dataset):
+```python
+class TextPairDataset(Dataset):
     def __init__(self, root, split="train", tokenizer_name="xlm-roberta-base",
                  max_length=512, return_format="dict", src_folder="source", tgt_folder="target", transforms=None):
         self.root = Path(root) / split
@@ -568,13 +584,13 @@ def get_loader(root, batch_size=8, split='train', shuffle=True, transforms=None,
         enc = self.tokenizer(src, truncation=True, padding="max_length",
                              max_length=self.max_length, return_tensors="pt")
         item = {'input_ids':enc.input_ids.squeeze(0), 'attention_mask':enc.attention_mask.squeeze(0), 'target':tgt}
-        formats = {
+        format_handlers = {
             'tuple': lambda x:(x['input_ids'], x['target']),
             'raw': lambda x:x['input_ids']
         }
         return format_handlers.get(self.return_format, lambda x:x)(item)
 
-def get_loader(root, batch_size=8, split='train', shuffle=True, transforms=None, **kwargs):
+def get_text_pair_loader(root, batch_size=8, split='train', shuffle=True, transforms=None, **kwargs):
     dataset = TextPairDataset(root, split, transforms=transforms, **kwargs)
-    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)`
-
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
+```
