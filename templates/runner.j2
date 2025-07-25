@@ -10,8 +10,8 @@ def main():
     root = config["data"].get("root", ".")
     batch_size = config["training"]["batch_size"]
     
-    train_loader = get_loader(root=root, batch_size=batch_size, split="train")
-    val_loader = get_loader(root=root, batch_size=batch_size, split="val")
+    train_loader = custom_loader(root=root, batch_size=batch_size, split="train")
+    val_loader = custom_loader(root=root, batch_size=batch_size, split="val")
 
     {% if config.model.use_pretrained %}
     model = models.{{ config.model.pretrained.name }}(pretrained=True)
