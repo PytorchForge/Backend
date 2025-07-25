@@ -1,5 +1,3 @@
-
-
 def main():
     with open("config.json") as f:
         config = json.load(f)
@@ -19,60 +17,15 @@ def main():
     model = CustomModel(config)
     {% endif %}
     model.to(device)
-
+    
     criterion = get_criterion(config)
     optimizer = get_optimizer(model, config)
-    metrics = []
-    {% for m in config.training.metrics %}
-    {% set params = m.params %}
-    {% if m.name == "Accuracy" %}
-    {% if params %}
-    metrics.append(torchmetrics.Accuracy(**{{ params }}))
-    {% else %}
-    metrics.append(torchmetrics.Accuracy())
-    {% endif %}
-    {% elif m.name == "F1Score" %}
-    {% if params %}
-    metrics.append(torchmetrics.F1Score(**{{ params }}))
-    {% else %}
-    metrics.append(torchmetrics.F1Score())
-    {% endif %}
-    {% elif m.name == "Recall" %}
-    {% if params %}
-    metrics.append(torchmetrics.Recall(**{{ params }}))
-    {% else %}
-    metrics.append(torchmetrics.Recall())
-    {% endif %}
-    {% elif m.name == "MeanAbsoluteError" %}
-    {% if params %}
-    metrics.append(torchmetrics.MeanAbsoluteError(**{{ params }}))
-    {% else %}
-    metrics.append(torchmetrics.MeanAbsoluteError())
-    {% endif %}
-    {% else %}
-    {% if m.name in METRIC_REGISTRY %}
-    {% if params %}
-    metrics.append(METRIC_REGISTRY["{{ m.name }}"](**{{ params }}))
-    {% else %}
-    metrics.append(METRIC_REGISTRY["{{ m.name }}"]())
-    {% endif %}
-    {% else %}
-    print("Unsupported metric: {{ m.name }}")
-    {% endif %}
-    {% endif %}
-    {% endfor %}
-
     epochs = config["training"]["epochs"]
 
-    history = {
-        "epochs": epochs,
-        "training": []
-    }
+    history = {"epochs": epochs, "training": []}
 
     for epoch in range(epochs):
-        train_loss, train_acc = train_one_epoch(
-            model, train_loader, criterion, optimizer, device
-        )
+        train_loss, train_acc = train_one_epoch(model, train_loader, criterion, optimizer, device)
         val_loss, val_acc = evaluate(model, val_loader, criterion, device)
 
         epoch_log = {
@@ -80,7 +33,7 @@ def main():
             "train_loss": train_loss,
             "train_acc": train_acc,
             "val_loss": val_loss,
-            "val_acc": val_acc
+            "val_acc": val_acc,
         }
 
         history["training"].append(epoch_log)
@@ -93,7 +46,7 @@ def main():
 
     Path("results.json").write_text(json.dumps(history, indent=4))
 
-    print("Training completed. Results are saved in 'results.json'.")
+    print("Training completed. Results saved in 'results.json'.")
 
 if __name__ == "__main__":
     main()

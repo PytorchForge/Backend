@@ -1,35 +1,47 @@
-{% macro conformer(input_dim, num_heads, ffn_dim, num_layers, depthwise_conv_kernel_size, dropout=0.0, use_group_norm=False, convolution_first=False) %}
-Conformer(
+{% set model_name = config.model.pretrained.name %}
+
+{% if model_name == 'Conformer' %}
+model = models.Conformer(
     input_dim={{ input_dim }},
     num_heads={{ num_heads }},
     ffn_dim={{ ffn_dim }},
     num_layers={{ num_layers }},
     depthwise_conv_kernel_size={{ depthwise_conv_kernel_size }},
-    dropout={{ dropout }},
-    use_group_norm={{ use_group_norm }},
-    convolution_first={{ convolution_first }}
+    dropout={{ dropout|default(0.0) }},
+    use_group_norm={{ use_group_norm|default(False) }},
+    convolution_first={{ convolution_first|default(False) }}
 )
-{% endmacro %}
-
-{% macro wave2letter(num_classes=40, input_type='waveform', num_features=1) %}
-Wave2Letter(
-    num_classes={{ num_classes }},
-    input_type='{{ input_type }}',
-    num_features={{ num_features }}
+{% elif model_name == 'Wave2Letter' %}
+model = models.Wave2Letter(
+    num_classes={{ num_classes|default(40) }},
+    input_type='{{ input_type|default("waveform") }}',
+    num_features={{ num_features|default(1) }}
 )
-{% endmacro %}
-
-{% macro wavernn(upsample_scales, n_classes, hop_length, n_res_block=10, n_rnn=512, n_fc=512, kernel_size=5, n_freq=128, n_hidden=128, n_output=128) %}
-WaveRNN(
+{% elif model_name == 'WaveRNN' %}
+model = models.WaveRNN(
     upsample_scales={{ upsample_scales }},
     n_classes={{ n_classes }},
     hop_length={{ hop_length }},
-    n_res_block={{ n_res_block }},
-    n_rnn={{ n_rnn }},
-    n_fc={{ n_fc }},
-    kernel_size={{ kernel_size }},
-    n_freq={{ n_freq }},
-    n_hidden={{ n_hidden }},
-    n_output={{ n_output }}
+    n_res_block={{ n_res_block|default(10) }},
+    n_rnn={{ n_rnn|default(512) }},
+    n_fc={{ n_fc|default(512) }},
+    kernel_size={{ kernel_size|default(5) }},
+    n_freq={{ n_freq|default(128) }},
+    n_hidden={{ n_hidden|default(128) }},
+    n_output={{ n_output|default(128) }}
 )
-{% endmacro %}
+{% elif model_name == 'Transformer' %}
+model = models.Transformer(
+    input_dim={{ input_dim }},
+    num_heads={{ num_heads }},
+    ffn_dim={{ ffn_dim }},
+    num_layers={{ num_layers }},
+    dropout={{ dropout|default(0.1) }},
+    activation='{{ activation|default("relu") }}',
+    use_positional_encoding={{ use_positional_encoding|default(True) }},
+    max_seq_length={{ max_seq_length|default(512) }},
+    num_classes={{ num_classes|default(40) }}
+)
+{% else %}
+print("Unsupported model type: {{ model_name }}")
+{% endif %}

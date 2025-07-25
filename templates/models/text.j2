@@ -1,29 +1,27 @@
-{% macro glove(dim, name) %}
-GloVe(
+{% set model_name = config.model.pretrained.name %}
+
+{% if model_name == 'GloVe' %}
+model = models.GloVe(
     dim={{ dim }},
     name='{{ name }}'
 )
-{% endmacro %}
-
-{% macro fasttext(language) %}
-FastText(
+{% elif model_name == 'FastText' %}
+model = models.FastText(
     language='{{ language }}'
 )
-{% endmacro %}
-
-{% macro transformer(d_model, nhead, num_encoder_layers, num_decoder_layers) %}
-Transformer(
+{% elif model_name == 'Transformer' %}
+model = models.Transformer(
     d_model={{ d_model }},
     nhead={{ nhead }},
     num_encoder_layers={{ num_encoder_layers }},
     num_decoder_layers={{ num_decoder_layers }}
 )
-{% endmacro %}
-
-{% macro xlmroberta(num_classes, dropout, pooler_type) %}
-XLMRoberta(
+{% elif model_name == 'XLMRoberta' %}
+model = models.XLMRoberta(
     num_classes={{ num_classes }},
     dropout={{ dropout }},
     pooler_type='{{ pooler_type }}'
 )
-{% endmacro %}
+{% else %}
+print("Unsupported model type: {{ model_name }}")
+{% endif %}

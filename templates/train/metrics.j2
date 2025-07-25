@@ -1,39 +1,32 @@
+{% for metric in config.training.metrics %}
 metrics = []
-{% for m in config.training.metrics %}
-{% set params = m.params %}
-{% if m.name == "Accuracy" %}
-{% if params %}
-metrics.append(torchmetrics.Accuracy(**{{ params }}))
-{% else %}
-metrics.append(torchmetrics.Accuracy())
-{% endif %}
-{% elif m.name == "F1Score" %}
-{% if params %}
-metrics.append(torchmetrics.F1Score(**{{ params }}))
-{% else %}
-metrics.append(torchmetrics.F1Score())
-{% endif %}
-{% elif m.name == "Recall" %}
-{% if params %}
-metrics.append(torchmetrics.Recall(**{{ params }}))
-{% else %}
-metrics.append(torchmetrics.Recall())
-{% endif %}
-{% elif m.name == "MeanAbsoluteError" %}
-{% if params %}
-metrics.append(torchmetrics.MeanAbsoluteError(**{{ params }}))
-{% else %}
-metrics.append(torchmetrics.MeanAbsoluteError())
-{% endif %}
-{% else %}
-{% if m.name in METRIC_REGISTRY %}
-{% if params %}
-metrics.append(METRIC_REGISTRY["{{ m.name }}"](**{{ params }}))
-{% else %}
-metrics.append(METRIC_REGISTRY["{{ m.name }}"]())
-{% endif %}
-{% else %}
-print("Unsupported metric: {{ m.name }}")
-{% endif %}
+{% if metric.name == 'Accuracy' %}
+metrics.append(torchmetrics.Accuracy(
+    task='{{ metric.params.task | default("multiclass") }}',
+    num_classes={{ metric.params.num_classes | default(2) }},
+    threshold={{ metric.params.threshold | default('None') }},
+    top_k={{ metric.params.top_k | default('None') }},
+    average='{{ metric.params.average | default("micro") }}'
+))
+{% elif metric.name == 'F1Score' %}
+metrics.append(torchmetrics.F1Score(
+    task='{{ metric.params.task | default("multiclass") }}',
+    num_classes={{ metric.params.num_classes | default(2) }},
+    threshold={{ metric.params.threshold | default('None') }},
+    top_k={{ metric.params.top_k | default('None') }},
+    average='{{ metric.params.average | default("micro") }}'
+))
+{% elif metric.name == 'Recall' %}
+metrics.append(torchmetrics.Recall(
+    task='{{ metric.params.task | default("multiclass") }}',
+    num_classes={{ metric.params.num_classes | default(2) }},
+    threshold={{ metric.params.threshold | default('None') }},
+    top_k={{ metric.params.top_k | default('None') }},
+    average='{{ metric.params.average | default("micro") }}'
+))
+{% elif metric.name == 'MeanAbsoluteError' %}
+metrics.append(torchmetrics.MeanAbsoluteError(
+    num_outputs={{ metric.params.num_outputs | default('None') }}
+))
 {% endif %}
 {% endfor %}

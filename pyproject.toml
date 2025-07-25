@@ -16,6 +16,7 @@ dependencies = [
     "pyside6>=6.9.0",
     "qt-material>=2.17",
     "scikit-learn>=1.6.1",
+    "thefuzz[speedup]>=0.22.1",
     "toml>=0.10.2",
     "tool>=0.8.0",
     "torch>=2.6.0",
@@ -23,6 +24,7 @@ dependencies = [
     "torchmetrics>=1.7.4",
     "torchvision>=0.21.0",
     "uvicorn>=0.34.2",
+    "pyinstaller",
 ]
 
 [tool.uv.sources]
