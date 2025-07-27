@@ -15,5 +15,6 @@
 
 - install uv with `brew install uv` or `python -m pip install uv`
 - sync dependencies `uv sync` from root folder of repo
+- activate venv `source .venv/bin/activate` (/activate.<shell_ext> if present in bin)
 - run server `python modules/main.py`
 - check api at `http://127.0.0.1:8000/docs`
