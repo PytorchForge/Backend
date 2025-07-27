@@ -93,8 +93,12 @@ def resolve_template(section, cfg):
     task_dir = fuzzy_match(task_ui, task_available)
     subtask_dir = fuzzy_match(subtask_ui, subtask_available)
 
-    if section == "models" and cfg.get("model", {}).get("modelType") == "custom":
-        return TASK_MAP["custom_model"]
+    if section == "models":
+        if cfg.get("model", {}).get("use_pretrained", False):
+            return TASK_MAP["models"].format(task=task_dir)
+        else:
+            return TASK_MAP["custom_model"]
+
     if section == "loaders":
         return TASK_MAP[section].format(task=task_dir, subtask=subtask_dir)
     return TASK_MAP[section].format(task=task_dir)
@@ -155,10 +159,16 @@ def assemble(cfg):
 
 def write_output(code: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # debug
+    raw_path = output_path.with_name(f"{output_path.stem}_raw{output_path.suffix}")
+    raw_path.write_text(code)
+
     code = isort.code(code)
     mode = black.FileMode(line_length=88)
     code = black.format_str(code, mode=mode)
     output_path.write_text(code)
+
 
 def get_output_path(user_path: str = None) -> Path:
     path = Path(user_path) if user_path else DEFAULT_OUTPUT
