@@ -1,3 +1,4 @@
+import json
 import random
 from pathlib import Path
 
@@ -8,30 +9,34 @@ import torch.optim as optim
 import torchmetrics
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-from torchvision import models, transforms
+from torchvision import transforms as T
+
+print("Unsupported model type: ")
+
+
+transforms = [
+    T.ToTensor(),
+]
 
 
 class ImageClassificationDataset(Dataset):
     def __init__(
-        self,
-        root,
-        split="train",
-        label_type="folder-name",
-        label_map=None,
-        return_format="dict",
-        split_type="include",
+        self, root, split="train", return_format="dict", label_map=None, transforms=None
     ):
         self.root = Path(root) / split
-        self.label_map = self._infer_label_map()
         self.return_format = return_format
-        self.transform = transforms.Compose(
-            [transforms.Resize((224, 224)), transforms.ToTensor()]
+        self.transforms = (
+            transforms
+            if transforms
+            else [transforms.Resize((224, 224)), transforms.ToTensor()]
         )
+
+        self.label_map = label_map or self._infer_label_map()
         self.data = self._load_data()
 
     def _infer_label_map(self):
         classes = sorted([d.name for d in self.root.iterdir() if d.is_dir()])
-        return {cls: i for i, cls in enumerate(classes)}
+        return {cls: idx for idx, cls in enumerate(classes)}
 
     def _load_data(self):
         items = []
@@ -45,13 +50,25 @@ class ImageClassificationDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path, label = self.data[idx]
-        image = self.transform(Image.open(img_path).convert("RGB"))
+        image = Image.open(img_path).convert("RGB")
 
-        return {"image": image, "label": label}
+        for transform in self.transforms:
+            image = transform(image)
+
+        if self.return_format == "tuple":
+            return image, label
+        elif self.return_format == "raw":
+            return image
+        else:
+            return {"image": image, "label": label}
 
 
-def get_loader(root, batch_size=32, split="train", shuffle=True, **kwargs):
-    dataset = ImageClassificationDataset(root=root, split=split, **kwargs)
+def get_image_classification_loader(
+    root, batch_size=32, split="train", shuffle=True, transforms=None, **kwargs
+):
+    dataset = ImageClassificationDataset(
+        root=root, split=split, transforms=transforms, **kwargs
+    )
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
 
@@ -114,8 +131,33 @@ def evaluate(model, loader, criterion, device):
     return total_loss / len(loader), correct / len(loader.dataset)
 
 
-import json
-from pathlib import Path
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=0.001,
+    betas=[0.9, 0.999],
+    eps=1e-08,
+    weight_decay=0,
+    amsgrad=True,
+)
+
+
+criterion = torch.nn.CrossEntropyLoss(
+    weight=None,
+    size_average=False,
+    ignore_index=-100,
+    reduce=False,
+    reduction="Mean",
+    label_smoothing=0,
+)
+
+
+metrics = []
+
+metrics.append(
+    torchmetrics.Accuracy(
+        task="multiclass", num_classes=2, threshold=0.5, top_k=None, average="none"
+    )
+)
 
 
 def main():
@@ -128,19 +170,12 @@ def main():
     root = config["data"].get("root", ".")
     batch_size = config["training"]["batch_size"]
 
-    train_loader = get_loader(root=root, batch_size=batch_size, split="train")
-    val_loader = get_loader(root=root, batch_size=batch_size, split="val")
+    train_loader = custom_loader(root=root, batch_size=batch_size, split="train")
+    val_loader = custom_loader(root=root, batch_size=batch_size, split="val")
 
-    model = models.ResNet18(pretrained=True)
+    model = CustomModel(config)
 
     model.to(device)
-
-    criterion = get_criterion(config)
-    optimizer = get_optimizer(model, config)
-
-    metrics = []
-
-    raise NotImplementedError("Unsupported metric: Accuracy")
 
     epochs = config["training"]["epochs"]
 
@@ -168,10 +203,9 @@ def main():
             f"Val Loss={val_loss:.4f}, Val Acc={val_acc:.4f}"
         )
 
-    # Explicitly save results at the end of run
     Path("results.json").write_text(json.dumps(history, indent=4))
 
-    print("Training completed. Results are explicitly saved in 'results.json'.")
+    print("Training completed. Results saved in 'results.json'.")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import json
 import argparse
 from pathlib import Path
+import sys
 import jinja2
 import isort
 import black
@@ -21,14 +22,16 @@ REGISTRY_MAP = {
     "models": modelreg.PRETRAINED_MODEL_REGISTRY,
 }
 
+
 def fuzzy_match(query: str, choices: list[str], threshold: int = 75) -> str:
     """
-    only with variation of Case like "input_dim or inputDim"or contraction "mfcc or MFCC"
+    Perform fuzzy matching on choices to resolve query.
     """
     matched, score = process.extractOne(query, choices)
     if score >= threshold:
         return matched
     raise ValueError(f"No suitable match for '{query}'. Closest match was '{matched}' with a score of {score}.")
+
 
 def setup_environment():
     base = Path(__file__).parent.parent
@@ -37,6 +40,7 @@ def setup_environment():
         keep_trailing_newline=True,
         autoescape=False
     )
+
 
 env = setup_environment()
 
@@ -53,14 +57,17 @@ TASK_MAP = {
 
 DEFAULT_OUTPUT = Path(__file__).parent.parent / "outputs" / "out.py"
 
+
 def read_config(path):
     return json.loads(Path(path).read_text())
+
 
 def auto_resolve_name(category: str, provided_name: str) -> str:
     registry = REGISTRY_MAP.get(category)
     if not registry:
         raise ValueError(f"No registry found for category '{category}'.")
     return fuzzy_match(provided_name, list(registry.keys()))
+
 
 def normalize_names(cfg: dict):
     training = cfg.get("training", {})
@@ -77,7 +84,9 @@ def normalize_names(cfg: dict):
         for layer in layers:
             layer["type"] = auto_resolve_name("layers", layer["type"])
 
+
 def resolve_template(section, cfg):
+    debug_log(f"resolve_template called with section={section}")
     task_available = ["audio", "video", "image", "text", "tabular"]
     subtask_available = ["classification", "regression", "generation"]
     task_ui = cfg["main_task"].split()[0]
@@ -93,13 +102,12 @@ def resolve_template(section, cfg):
         return TASK_MAP[section].format(task=task_dir, subtask=subtask_dir)
     return TASK_MAP[section].format(task=task_dir)
 
+
 def render_template(path, context):
     try:
         template = env.get_template(path)
-        # Filter out empty dictionary parameters incase not handled in the template
-        filtered_context = filter_empty_dicts(context)
         return template.render(
-            config=filtered_context,
+            config=context,
             METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
             OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
             LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
@@ -108,13 +116,6 @@ def render_template(path, context):
     except jinja2.exceptions.TemplateNotFound:
         raise ValueError(f"Template {path} not found.")
 
-def filter_empty_dicts(data):
-    if isinstance(data, dict):
-        return {k: filter_empty_dicts(v) for k, v in data.items() if not (isinstance(v, dict) and not v)}
-    elif isinstance(data, list):
-        return [filter_empty_dicts(item) for item in data]
-    else:
-        return data
 
 def assemble(cfg):
     normalize_names(cfg)
@@ -139,43 +140,29 @@ def assemble(cfg):
         "runner.j2",
     ]
     for template in static_templates:
-        if template in env.list_templates():
-            parts.append(env.get_template(template).render(
-                config=cfg,
-                METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
-                OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
-                LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
-                LAYER_REGISTRY=layerreg.LAYER_REGISTRY
-            ))
+        debug_log(f"Rendering static template: {template}")
+        parts.append(env.get_template(template).render(
+            config=cfg,
+            METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
+            OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
+            LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
+            LAYER_REGISTRY=layerreg.LAYER_REGISTRY
+        ))
     return "\n\n".join(parts)
+
 
 def write_output(code: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # # Debug: Write the raw code to a file for inspection
-    # raw_path = output_path.with_name(f"{output_path.stem}_raw{output_path.suffix}")
-    # raw_path.write_text(code)
-    # print(f"Raw code written to {raw_path}")
-    # # Debug: Print the generated code before formatting
-    # print("Generated Code Before Formatting:")
-    # print(code)
-
     try:
         code = isort.code(code)
         mode = black.FileMode(line_length=88)
         code = black.format_str(code, mode=mode)
     except black.parsing.InvalidInput as e:
-        print(f"Black formatting error: {e}")
-        print("Generated Code Before Formatting:")
-        print(code)
+        debug_log(f"Black formatting error: {e}")
         raise
-
-    # # Debug: Print the generated code after formatting
-    # print("Generated Code After Formatting:")
-    # print(code)
-
     output_path.write_text(code)
-    print(f"Formatted code written to {output_path}")
+    print(json.dumps({"generated_path": str(output_path.resolve())}))
+
 
 def get_output_path(user_path: str = None) -> Path:
     path = Path(user_path) if user_path else DEFAULT_OUTPUT
@@ -186,23 +173,22 @@ def get_output_path(user_path: str = None) -> Path:
         return candidate
     return path
 
+
+def debug_log(message: str):
+    """Write debug information to stderr."""
+    print(message, file=sys.stderr)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Generate code from fuzzy-matched templates.")
+    parser = argparse.ArgumentParser(description="Generate code from templates.")
     parser.add_argument("config", help="Path to config JSON")
     parser.add_argument("--output", help="Optional output path for generated code")
     args = parser.parse_args()
     cfg = read_config(args.config)
-
-    # # Debug: Print the read JSON configuration
-    # print(f"Read JSON configuration from {args.config}:")
-    # print(json.dumps(cfg, indent=2))
-
     code = assemble(cfg)
     out_path = get_output_path(args.output)
     write_output(code, out_path)
-    print(json.dumps({"generated_path": str(out_path.resolve())}))
-if __name__ == "__main__":
-    main()
+
 
 if __name__ == "__main__":
     main()

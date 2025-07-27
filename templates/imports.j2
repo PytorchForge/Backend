@@ -4,16 +4,12 @@ import numpy as np
 import torch
 import json
 
-{% if config.data_format == "imagefolder" %}
-from PIL import Image
-from torchvision import transforms as T
-{% endif %}
+
 
 from torch.utils.data import DataLoader, Dataset
 
 {% if config.model.use_pretrained %}
 from torchvision import models
-from torchvision import transforms as T
 {% endif %}
 
 import torch.nn as nn
@@ -33,6 +29,10 @@ import torchaudio.transforms  as T
 {% if "text" in main_task %}
 from torchtext.transforms import ToTensor
 from transformers import AutoTokenizer
+{% endif %}
+{% if "image" in main_task %}
+from torchvision import transforms as T
+from PIL import Image
 {% endif %}
 
 {% if config.sub_task.lower() == "text generation" %}

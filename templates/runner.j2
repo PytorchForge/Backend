@@ -18,8 +18,6 @@ def main():
     {% endif %}
     model.to(device)
     
-    criterion = get_criterion(config)
-    optimizer = get_optimizer(model, config)
     epochs = config["training"]["epochs"]
 
     history = {"epochs": epochs, "training": []}

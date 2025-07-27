@@ -9,9 +9,7 @@ import json
 import os
 import sys
 from typing import Any, Dict, List, Literal, Optional
-import shutil
 import ast
-from sklearn import base
 import toml
 
 # from configs.datasetconfig import DataIOConfig
@@ -166,11 +164,11 @@ def update_pyproject_toml(pyproject_path: Path, packages: set):
         pyproject_path.parent.mkdir(parents=True, exist_ok=True)
         toml.dump(pyproject_data, pyproject_path.open("w"))
 
-
 @app.post("/generate")
 async def generate(payload: GeneratePayload):
     base_path = Path(payload.base_path)
     parser_path = base_path / "parser.py"
+
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
         cfg_dict = payload.model_dump()
         cfg_dict["dataloading"] = payload.dataloading.strip()
@@ -178,42 +176,51 @@ async def generate(payload: GeneratePayload):
         temp_config.flush()
         temp_config_path = temp_config.name
 
-        # # Debug: Print the JSON configuration
-        # print(f"Written JSON configuration to {temp_config_path}:")
-        # with open(temp_config_path, 'r') as f:
-        #     print(f.read())
-
     try:
         result = subprocess_run(
             [sys.executable, str(parser_path), temp_config_path],
             stdout=PIPE,
             stderr=PIPE,
             text=True,
-            cwd=base_path
+            cwd=base_path,
         )
+        
+        print("Subprocess STDOUT:")
+        print(result.stdout)
+        print("Subprocess STDERR:")
+        print(result.stderr)
+
+        # Check for subprocess errors
         if result.returncode != 0:
-            return JSONResponse(status_code=500, content={"error": result.stderr})
-        parser_output = json.loads(result.stdout.strip())
+            return JSONResponse(status_code=500, content={"error": result.stderr.strip()})
+
+        # Ensure valid stdout
+        if not result.stdout.strip():
+            return JSONResponse(status_code=500, content={"error": "Parser returned empty output"})
+        
+        # Parse JSON output from stdout
+        try:
+            parser_output = json.loads(result.stdout.strip())
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse output: {result.stdout.strip()}")
+            return JSONResponse(status_code=500, content={"error": f"Failed to parse output: {str(e)}"})
+
         generated_path = Path(parser_output["generated_path"])
-        # Resolve paths
-        pyproject_src = base_path.parent / "pyproject.toml"
-        pyproject_dst = generated_path.parent / "pyproject.toml"
-        # copy or touch pyproject.toml
-        if pyproject_src.is_file():
-            shutil.copy(pyproject_src, pyproject_dst)
-        else:
-            pyproject_dst.touch()
-        dest_config_path = generated_path.parent / "config.json"
-        shutil.copy(temp_config_path, dest_config_path)
-        # Parse imports and update pyproject.toml
+
+        if not generated_path.exists():
+            return JSONResponse(status_code=404, content={"error": f"{generated_path} not found"})
+        
         generated_code = generated_path.read_text()
-        imported_packages = parse_imports_from_code(generated_code)
-        update_pyproject_toml(pyproject_dst, imported_packages)
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
     finally:
         os.unlink(temp_config_path)
-    return JSONResponse(status_code=200, content={"generated_path": str(generated_path)})
+
+    return JSONResponse(
+        status_code=200,
+        content={"generated_code": generated_code, "generated_path": str(generated_path)},
+    )                         
 
 
 class RunPayload(BaseModel):

@@ -1,4 +1,3 @@
-{# Linear #}
 {% if layer_type == 'Linear' %}
     nn.Linear({{ in_features }}, {{ out_features }}, bias={{ bias | default(true) }})
 {% elif layer_type == 'Bilinear' %}

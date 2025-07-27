@@ -9,12 +9,67 @@ import torch.optim as optim
 import torchmetrics
 from PIL import Image
 from torch.utils.data import DataLoader, Dataset
-from torchvision import models, transforms
+from torchvision import transforms as T
+
+print("Unsupported model type: ")
 
 
-def custom_loader(path):
-    # user-defined data loading code
-    pass
+transforms = [
+    T.ToTensor(),
+]
+
+
+class ImageClassificationDataset(Dataset):
+    def __init__(
+        self, root, split="train", return_format="dict", label_map=None, transforms=None
+    ):
+        self.root = Path(root) / split
+        self.return_format = return_format
+        self.transforms = (
+            transforms
+            if transforms
+            else [transforms.Resize((224, 224)), transforms.ToTensor()]
+        )
+
+        self.label_map = label_map or self._infer_label_map()
+        self.data = self._load_data()
+
+    def _infer_label_map(self):
+        classes = sorted([d.name for d in self.root.iterdir() if d.is_dir()])
+        return {cls: idx for idx, cls in enumerate(classes)}
+
+    def _load_data(self):
+        items = []
+        for cls in self.label_map:
+            for img_path in (self.root / cls).glob("*.jpg"):
+                items.append((img_path, self.label_map[cls]))
+        return items
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        img_path, label = self.data[idx]
+        image = Image.open(img_path).convert("RGB")
+
+        for transform in self.transforms:
+            image = transform(image)
+
+        if self.return_format == "tuple":
+            return image, label
+        elif self.return_format == "raw":
+            return image
+        else:
+            return {"image": image, "label": label}
+
+
+def get_image_classification_loader(
+    root, batch_size=32, split="train", shuffle=True, transforms=None, **kwargs
+):
+    dataset = ImageClassificationDataset(
+        root=root, split=split, transforms=transforms, **kwargs
+    )
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
 
 def set_seed(config, seed=None):
@@ -76,6 +131,35 @@ def evaluate(model, loader, criterion, device):
     return total_loss / len(loader), correct / len(loader.dataset)
 
 
+optimizer = torch.optim.Adam(
+    model.parameters(),
+    lr=0.001,
+    betas=[0.9, 0.999],
+    eps=1e-08,
+    weight_decay=0,
+    amsgrad=True,
+)
+
+
+criterion = torch.nn.CrossEntropyLoss(
+    weight=None,
+    size_average=False,
+    ignore_index=-100,
+    reduce=False,
+    reduction="Mean",
+    label_smoothing=0,
+)
+
+
+metrics = []
+
+metrics.append(
+    torchmetrics.Accuracy(
+        task="multiclass", num_classes=2, threshold=0.5, top_k=None, average="none"
+    )
+)
+
+
 def main():
     with open("config.json") as f:
         config = json.load(f)
@@ -89,16 +173,9 @@ def main():
     train_loader = custom_loader(root=root, batch_size=batch_size, split="train")
     val_loader = custom_loader(root=root, batch_size=batch_size, split="val")
 
-    model = models.resnet50(pretrained=True)
+    model = CustomModel(config)
 
     model.to(device)
-
-    criterion = get_criterion(config)
-    optimizer = get_optimizer(model, config)
-
-    metrics = []
-
-    raise NotImplementedError("Unsupported metric: Accuracy")
 
     epochs = config["training"]["epochs"]
 
@@ -128,7 +205,7 @@ def main():
 
     Path("results.json").write_text(json.dumps(history, indent=4))
 
-    print("Training completed. Results are explicitly saved in 'results.json'.")
+    print("Training completed. Results saved in 'results.json'.")
 
 
 if __name__ == "__main__":
