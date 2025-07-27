@@ -10,3 +10,10 @@
   - send back generated code
   - send training command, inference results
 - run training or inference scripts and return result to UI
+
+## Running the server
+
+- install uv with `brew install uv` or `python -m pip install uv`
+- sync dependencies `uv sync` from root folder of repo
+- run server `python modules/main.py`
+- check api at `http://127.0.0.1:8000/docs`
