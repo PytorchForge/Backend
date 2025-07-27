@@ -186,10 +186,10 @@ async def generate(payload: GeneratePayload):
             cwd=base_path,
         )
         
-        print("Subprocess STDOUT:")
-        print(result.stdout)
-        print("Subprocess STDERR:")
-        print(result.stderr)
+        # print("Subprocess STDOUT:")
+        # print(result.stdout)
+        # print("Subprocess STDERR:")
+        # print(result.stderr)
 
         if result.returncode != 0:
             return JSONResponse(status_code=500, content={"error": result.stderr.strip()})
@@ -202,7 +202,7 @@ async def generate(payload: GeneratePayload):
         except json.JSONDecodeError as e:
             print(f"Failed to parse output: {result.stdout.strip()}")
             return JSONResponse(status_code=500, content={"error": f"Failed to parse output: {str(e)}"})
-
+        
         generated_path = Path(parser_output["generated_path"])
 
         if not generated_path.exists():
