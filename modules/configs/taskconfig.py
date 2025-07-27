@@ -15,6 +15,13 @@ class DataFormat(str, Enum):
     imagefolder = "imagefolder"
     csv = "csv"
     json = "json"
+    png = "png"
+    jpg = "jpg"
+    jpeg = "jpeg"
+    txt = "txt"
+    audio = "audio"
+    video = "video"
+    parquet = "parquet"
     other = "other"
 
 class DataType(str, Enum):

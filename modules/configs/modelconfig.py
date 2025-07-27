@@ -40,11 +40,11 @@ class ModelConfig(BaseModel):
         if use_pretrained:
             if not pretrained:
                 raise ValueError("use_pretrained=True requires a 'pretrained' model.")
-            if layers:
-                raise ValueError("If 'use_pretrained' is True, 'layers' must be None.")
+            # if layers:
+            #     raise ValueError("If 'use_pretrained' is True, 'layers' must be None.")
         else:
             if not layers:
                 raise ValueError("use_pretrained=False requires 'layers' to be defined.")
-            if pretrained:
-                raise ValueError("If 'use_pretrained' is False, 'pretrained' must be None.")
+            # if pretrained:
+            #     raise ValueError("If 'use_pretrained' is False, 'pretrained' must be None.")
         return values
