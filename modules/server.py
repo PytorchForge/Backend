@@ -20,7 +20,18 @@ import toml
 # from configs.modelconfig import ModelConfig
 # from configs.trainconfig import TrainingConfig
 
+
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],  
+    allow_headers=["*"],  
+)
 
 DEFAULT_BASE_PATH = Path(__file__).parent # current directory of this script
 print(f"Default base path set to: {DEFAULT_BASE_PATH}")
@@ -91,7 +102,7 @@ class GeneratePayload(BaseModel):
     task_type: Literal["ml", "dl"]
     main_task: str
     sub_task: str
-    data_format: Literal["imagefolder", "csv", "json", "audio", "other"]
+    data_format: str = Field(..., description="Format of the data, e.g., 'csv', 'json', 'image', 'text'")
     data_source: DataSource
     dataloading: str
     preprocessing: List[PreprocessingStep] = Field(default_factory=list)

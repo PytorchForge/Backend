@@ -12,6 +12,7 @@ def parse_args():
     p.add_argument("--loop", default="auto")
     return p.parse_args()
 
+# remove the `reload` option when building for production
 def main():
     args = parse_args()
     if args.reload and args.workers != 1:
@@ -20,7 +21,9 @@ def main():
         app="server:app",
         host=args.host,
         port=args.port,
-        reload=args.reload,
+        # reload=args.reload,
+        reload=True, 
+        reload_dirs=["modules", "templates",],
         log_level=args.log_level,
         workers=args.workers,
         lifespan=args.lifespan,
