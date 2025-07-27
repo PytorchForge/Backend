@@ -24,6 +24,7 @@ dependencies = [
     "torchmetrics>=1.7.4",
     "torchvision>=0.21.0",
     "uvicorn>=0.34.2",
+    "pyinstaller",
 ]
 
 [tool.uv.sources]
