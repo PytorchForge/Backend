@@ -18,3 +18,6 @@
 - activate venv `source .venv/bin/activate` (/activate.<shell_ext> if present in .venv/bin)
 - run server `python modules/main.py`
 - check api at `http://127.0.0.1:8000/docs`
+
+
+## TODO: Build into a cross platform binary
