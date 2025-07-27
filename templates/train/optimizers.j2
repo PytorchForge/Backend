@@ -6,7 +6,7 @@ optimizer = torch.optim.Adam(
   betas={{ opt.params.betas | default([0.9, 0.999]) }},
   eps={{ opt.params.eps | default(1e-8) }},
   weight_decay={{ opt.params.weight_decay | default(0) }},
-  amsgrad={{ 'True' if opt.params.amsgrad else 'False' if 'amsgrad' in opt.params else '' }}
+  amsgrad={{ 'True' if opt.params.amsgrad else 'False' if 'amsgrad' in opt.params else 'False' }}
 )
 {% elif opt.name == 'SGD' %}
 optimizer = torch.optim.SGD(
@@ -15,7 +15,7 @@ optimizer = torch.optim.SGD(
   momentum={{ opt.params.momentum | default(0) }},
   weight_decay={{ opt.params.weight_decay | default(0) }},
   dampening={{ opt.params.dampening | default(0) }},
-  nesterov={{ 'True' if opt.params.nesterov else 'False' if 'nesterov' in opt.params else '' }}
+  nesterov={{ 'True' if opt.params.nesterov else 'False' if 'nesterov' in opt.params else 'False' }}
 )
 {% elif opt.name == 'RMSprop' %}
 optimizer = torch.optim.RMSprop(
@@ -25,7 +25,7 @@ optimizer = torch.optim.RMSprop(
   eps={{ opt.params.eps | default(1e-8) }},
   weight_decay={{ opt.params.weight_decay | default(0) }},
   momentum={{ opt.params.momentum | default(0) }},
-  centered={{ 'True' if opt.params.centered else 'False' if 'centered' in opt.params else '' }}
+  centered={{ 'True' if opt.params.centered else 'False' if 'centered' in opt.params else 'False' }}
 )
 {% elif opt.name == 'Adagrad' %}
 optimizer = torch.optim.Adagrad(

@@ -119,7 +119,7 @@ optimizer = torch.optim.Adam(
   betas=[0.9, 0.999],
   eps=1e-08,
   weight_decay=0,
-  amsgrad=
+  amsgrad=False
 )
 
 

@@ -1,77 +1,78 @@
 {
-  "data": {
-    "data": {
-      "task_type": "ml",
-      "main_task": "image",
-      "sub_task": "classification",
-      "data_format": "imagefolder",
-      "data_type": "file"
+  "task_type": "ml",
+  "main_task": "classification",
+  "sub_task": "image",
+  "data_format": "imagefolder",
+  "data_source": {
+    "type": "folder",
+    "value": "/path/to/dataset"
+  },
+  "dataloading": "custom_data_loader_code",
+  "preprocessing": [
+    {
+      "name": "Resize",
+      "params": {
+        "size": [224, 224]
+      }
     },
-    "dataloading": "image_classification_loader",
-    "preprocessing": [
+    {
+      "name": "ToTensor",
+      "params": {}
+    }
+  ],
+  "model": {
+    "use_pretrained": true,
+    "pretrained": {
+      "name": "ResNet50",
+      "params": {
+        "pretrained": true,
+        "num_classes": 10
+      }
+    },
+    "layers": []
+  },
+  "training": {
+    "loss": {
+      "name": "CrossEntropyLoss",
+      "params": {
+        "reduction": "mean"
+      }
+    },
+    "optimizer": {
+      "name": "Adam",
+      "params": {
+        "lr": 0.001,
+        "weight_decay": 0.0001
+      }
+    },
+    "metrics": [
       {
-        "name": "RandomCrop",
-        "params": {
-          "size": [224, 224]
-        }
+        "name": "Accuracy",
+        "params": {}
       }
     ],
-    "model": {
-      "use_pretrained": false,
-      "pretrained": {
-        "name": "ResNet50",
-        "params": {
-          "pretrained": true
-        }
-      },
-      "layers": [
-        {
-          "type": "Linear",
-          "params": {
-            "in_features": 512,
-            "out_features": 10
-          }
-        }
-      ]
+    "scheduler": {
+      "name": "StepLR",
+      "params": {
+        "step_size": 5,
+        "gamma": 0.1
+      }
     },
-    "training": {
+    "monitoring": [
+      "use_tensorboard"
+    ],
+    "hyper_params": {
       "batch_size": 32,
       "learning_rate": 0.001,
       "epochs": 10,
-      "weight_decay": 0.0001,
-      "optimizer": {
-        "name": "Adam",
-        "params": {
-          "lr": 0.001
-        }
-      },
-      "scheduler": {
-        "name": "StepLR",
-        "params": {
-          "step_size": 5,
-          "gamma": 0.5
-        }
-      },
-      "loss": {
-        "name": "CrossEntropyLoss",
-        "params": {}
-      },
-      "metrics": [
-        {
-          "name": "Accuracy",
-          "params": {
-            "average": "macro"
-          }
-        }
-      ],
-      "early_stopping": {
-        "enabled": true,
-        "params": {
-          "patience": 5
-        }
-      },
-      "monitoring": ["use_tensorboard"]
+      "weight_decay": 0.0001
+    },
+    "early_stopping": {
+      "enabled": true,
+      "params": {
+        "monitor": "val_loss",
+        "patience": 3
+      }
     }
   }
-
-}
+} 

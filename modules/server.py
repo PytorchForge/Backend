@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, model_validator
 from subprocess import run as subprocess_run, PIPE
 from pathlib import Path
@@ -10,13 +11,14 @@ import sys
 from typing import Any, Dict, List, Literal, Optional
 import shutil
 import ast
+from sklearn import base
 import toml
 
 # from configs.datasetconfig import DataIOConfig
-from configs.taskconfig import TaskConfig
-from configs.preprocessingconfig import PreprocessingStep
-from configs.modelconfig import ModelConfig
-from configs.trainconfig import TrainingConfig
+# from configs.taskconfig import DataFormat, DataType
+# from configs.preprocessingconfig import PreprocessingStep
+# from configs.modelconfig import ModelConfig
+# from configs.trainconfig import TrainingConfig
 
 app = FastAPI()
 
@@ -24,24 +26,80 @@ DEFAULT_BASE_PATH = Path(__file__).parent # current directory of this script
 print(f"Default base path set to: {DEFAULT_BASE_PATH}")
 
 
-class GenerateDataModel(BaseModel):
-    data: TaskConfig
-    dataloading: str = Field(
-        ...,
-        description="Data loading configuration as a string. This will have the user's custom data loading code."
-    )
-    # dataloading: DataIOConfig  # incase for future 
-    preprocessing: Optional[List[PreprocessingStep]] = Field(
-        None, description="List of preprocessing steps to apply to the data"
-    )
-    model: ModelConfig
-    training: TrainingConfig
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs",status_code=308)
 
 
+class DataSource(BaseModel):
+    type: Literal["file", "folder"]
+    value: str  # Path to file or folder
+
+class PreprocessingStep(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+class PretrainedModel(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+class LayerDefinition(BaseModel):
+    type: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+class ModelConfig(BaseModel):
+    use_pretrained: bool
+    pretrained: Optional[PretrainedModel] = None
+    layers: Optional[List[LayerDefinition]] = None
+
+class LossConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+class OptimizerConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+class MetricConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+class SchedulerConfig(BaseModel):
+    name: str
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+class EarlyStoppingConfig(BaseModel):
+    enabled: bool
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+class HyperParams(BaseModel):
+    batch_size: int
+    learning_rate: float
+    epochs: int
+    weight_decay: Optional[float] = 0.0
+
+class TrainingConfig(BaseModel):
+    loss: LossConfig
+    optimizer: OptimizerConfig
+    metrics: List[MetricConfig]
+    scheduler: Optional[SchedulerConfig] = None
+    monitoring: List[Literal["use_tensorboard", "use_wandb", "use_mlflow"]] = Field(default_factory=list)
+    hyper_params: HyperParams
+    early_stopping: EarlyStoppingConfig
 
 class GeneratePayload(BaseModel):
-    data: GenerateDataModel
-    base_path: str = str(DEFAULT_BASE_PATH)
+    task_type: Literal["ml", "dl"]
+    main_task: str
+    sub_task: str
+    data_format: Literal["imagefolder", "csv", "json", "audio", "other"]
+    data_source: DataSource
+    dataloading: str
+    preprocessing: List[PreprocessingStep] = Field(default_factory=list)
+    model: ModelConfig
+    training: TrainingConfig
+    base_path: Optional[str] = DEFAULT_BASE_PATH.as_posix() 
+
+
 
 
 DATASETS_ROOT = DEFAULT_BASE_PATH / Path("/dataset")
@@ -102,13 +160,17 @@ def update_pyproject_toml(pyproject_path: Path, packages: set):
 async def generate(payload: GeneratePayload):
     base_path = Path(payload.base_path)
     parser_path = base_path / "parser.py"
-    
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
-        cfg_dict = payload.data.model_dump()
-        cfg_dict["dataloading"] = payload.data.dataloading.strip()
+        cfg_dict = payload.model_dump()
+        cfg_dict["dataloading"] = payload.dataloading.strip()
         json.dump(cfg_dict, temp_config)
         temp_config.flush()
         temp_config_path = temp_config.name
+
+        # # Debug: Print the JSON configuration
+        # print(f"Written JSON configuration to {temp_config_path}:")
+        # with open(temp_config_path, 'r') as f:
+        #     print(f.read())
 
     try:
         result = subprocess_run(
@@ -118,39 +180,29 @@ async def generate(payload: GeneratePayload):
             text=True,
             cwd=base_path
         )
-
         if result.returncode != 0:
             return JSONResponse(status_code=500, content={"error": result.stderr})
-
         parser_output = json.loads(result.stdout.strip())
         generated_path = Path(parser_output["generated_path"])
-
         # Resolve paths
         pyproject_src = base_path.parent / "pyproject.toml"
         pyproject_dst = generated_path.parent / "pyproject.toml"
-        
         # copy or touch pyproject.toml
         if pyproject_src.is_file():
             shutil.copy(pyproject_src, pyproject_dst)
         else:
             pyproject_dst.touch()
-
         dest_config_path = generated_path.parent / "config.json"
         shutil.copy(temp_config_path, dest_config_path)
-
         # Parse imports and update pyproject.toml
         generated_code = generated_path.read_text()
         imported_packages = parse_imports_from_code(generated_code)
         update_pyproject_toml(pyproject_dst, imported_packages)
-
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
-    
     finally:
         os.unlink(temp_config_path)
-    
     return JSONResponse(status_code=200, content={"generated_path": str(generated_path)})
-
 
 
 class RunPayload(BaseModel):

@@ -1,12 +1,10 @@
 import json
 import argparse
 from pathlib import Path
-
 import jinja2
 import isort
 import black
 from thefuzz import process
-
 from configs.registries import (
     optimizerreg,
     lossreg,
@@ -66,16 +64,12 @@ def auto_resolve_name(category: str, provided_name: str) -> str:
 
 def normalize_names(cfg: dict):
     training = cfg.get("training", {})
-
     if optimizer := training.get("optimizer"):
         optimizer["name"] = auto_resolve_name("optimizers", optimizer["name"])
-
     if loss := training.get("loss"):
         loss["name"] = auto_resolve_name("losses", loss["name"])
-
     for metric in training.get("metrics", []):
         metric["name"] = auto_resolve_name("metrics", metric["name"])
-
     model_cfg = cfg.get("model", {})
     if pretrained := model_cfg.get("pretrained", {}):
         pretrained["name"] = auto_resolve_name("models", pretrained["name"])
@@ -86,19 +80,15 @@ def normalize_names(cfg: dict):
 def resolve_template(section, cfg):
     task_available = ["audio", "video", "image", "text", "tabular"]
     subtask_available = ["classification", "regression", "generation"]
-
-    task_ui = cfg["data"]["main_task"].split()[0]
-    subtask_ui = cfg["data"]["sub_task"]
-
+    task_ui = cfg["main_task"].split()[0]
+    subtask_ui = cfg["sub_task"]
     task_dir = fuzzy_match(task_ui, task_available)
     subtask_dir = fuzzy_match(subtask_ui, subtask_available)
-
     if section == "models":
         if cfg.get("model", {}).get("use_pretrained", False):
             return TASK_MAP["models"].format(task=task_dir)
         else:
             return TASK_MAP["custom_model"]
-
     if section == "loaders":
         return TASK_MAP[section].format(task=task_dir, subtask=subtask_dir)
     return TASK_MAP[section].format(task=task_dir)
@@ -106,8 +96,10 @@ def resolve_template(section, cfg):
 def render_template(path, context):
     try:
         template = env.get_template(path)
+        # Filter out empty dictionary parameters incase not handled in the template
+        filtered_context = filter_empty_dicts(context)
         return template.render(
-            config=context,
+            config=filtered_context,
             METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
             OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
             LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
@@ -116,23 +108,25 @@ def render_template(path, context):
     except jinja2.exceptions.TemplateNotFound:
         raise ValueError(f"Template {path} not found.")
 
+def filter_empty_dicts(data):
+    if isinstance(data, dict):
+        return {k: filter_empty_dicts(v) for k, v in data.items() if not (isinstance(v, dict) and not v)}
+    elif isinstance(data, list):
+        return [filter_empty_dicts(item) for item in data]
+    else:
+        return data
+
 def assemble(cfg):
     normalize_names(cfg)
-
     parts = []
-
     imports_template = resolve_template("imports", cfg)
     parts.append(render_template(imports_template, cfg))
-
     model_template = resolve_template("models", cfg)
     parts.append(render_template(model_template, cfg))
-
     transforms_template = resolve_template("transforms", cfg)
     parts.append(render_template(transforms_template, cfg).strip())
-
     if dataloading_code := cfg.get("dataloading"):
         parts.append(dataloading_code.strip())
-
     static_templates = [
         "setup.j2",
         "train/utils.j2",
@@ -144,7 +138,6 @@ def assemble(cfg):
         "train/metrics.j2",
         "runner.j2",
     ]
-
     for template in static_templates:
         if template in env.list_templates():
             parts.append(env.get_template(template).render(
@@ -154,21 +147,35 @@ def assemble(cfg):
                 LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
                 LAYER_REGISTRY=layerreg.LAYER_REGISTRY
             ))
-
     return "\n\n".join(parts)
 
 def write_output(code: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # debug
-    raw_path = output_path.with_name(f"{output_path.stem}_raw{output_path.suffix}")
-    raw_path.write_text(code)
+    # # Debug: Write the raw code to a file for inspection
+    # raw_path = output_path.with_name(f"{output_path.stem}_raw{output_path.suffix}")
+    # raw_path.write_text(code)
+    # print(f"Raw code written to {raw_path}")
+    # # Debug: Print the generated code before formatting
+    # print("Generated Code Before Formatting:")
+    # print(code)
 
-    code = isort.code(code)
-    mode = black.FileMode(line_length=88)
-    code = black.format_str(code, mode=mode)
+    try:
+        code = isort.code(code)
+        mode = black.FileMode(line_length=88)
+        code = black.format_str(code, mode=mode)
+    except black.parsing.InvalidInput as e:
+        print(f"Black formatting error: {e}")
+        print("Generated Code Before Formatting:")
+        print(code)
+        raise
+
+    # # Debug: Print the generated code after formatting
+    # print("Generated Code After Formatting:")
+    # print(code)
+
     output_path.write_text(code)
-
+    print(f"Formatted code written to {output_path}")
 
 def get_output_path(user_path: str = None) -> Path:
     path = Path(user_path) if user_path else DEFAULT_OUTPUT
@@ -184,13 +191,18 @@ def main():
     parser.add_argument("config", help="Path to config JSON")
     parser.add_argument("--output", help="Optional output path for generated code")
     args = parser.parse_args()
-
     cfg = read_config(args.config)
+
+    # # Debug: Print the read JSON configuration
+    # print(f"Read JSON configuration from {args.config}:")
+    # print(json.dumps(cfg, indent=2))
+
     code = assemble(cfg)
     out_path = get_output_path(args.output)
     write_output(code, out_path)
-
     print(json.dumps({"generated_path": str(out_path.resolve())}))
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()

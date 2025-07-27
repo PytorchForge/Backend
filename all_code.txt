@@ -1,122 +1,100 @@
+# FILE: ./__init__.py
+\n
+# FILE: ./_main.py
+import argparse
+import uvicorn
 
+def parse_args():
+    p = argparse.ArgumentParser(prog="run")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--reload", action="store_true")
+    p.add_argument("--log-level", default="info")
+    p.add_argument("--workers", type=int, default=1)
+    p.add_argument("--lifespan", choices=("on","off","auto"), default="on")
+    p.add_argument("--loop", default="auto")
+    return p.parse_args()
 
-### ./__init__.py ###
-
-
-
-
-### ./test_parser.py ###
-
-
-import subprocess
-import tempfile
-import json
-import os
-from pathlib import Path
-
-base_dir = Path(__file__).parent
-
-config_variants = [
-    {
-        "name": "pretrained_image_classification",
-        "config": {
-            "mainTask": "classification",
-            "subTask": "image",
-            "modelType": "pretrained"
-        }
-    },
-    {
-        "name": "custom_audio_classification",
-        "config": {
-            "mainTask": "classification",
-            "subTask": "audio",
-            "modelType": "custom"
-        }
-    },
-    {
-        "name": "pretrained_text_generation",
-        "config": {
-            "mainTask": "generation",
-            "subTask": "text",
-            "modelType": "pretrained"
-        }
-    },
-    # Add more variations for testing
-]
-
-def run_parser_test(variant):
-    with tempfile.TemporaryDirectory() as tmpdir:
-        config_path = Path(tmpdir) / "config.json"
-        config_path.write_text(json.dumps(variant["config"]))
-
-        result = subprocess.run(
-            ["python", "parser.py", str(config_path)],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            cwd=base_dir
-        )
-
-        assert result.returncode == 0, f"{variant['name']} failed:\n{result.stderr}"
-        try:
-            output = json.loads(result.stdout.strip())
-        except Exception:
-            raise AssertionError(f"{variant['name']} produced invalid JSON output:\n{result.stdout}")
-
-        out_path = Path(output["generated_path"])
-        assert out_path.exists(), f"{variant['name']} did not create output file"
-
-        content = out_path.read_text()
-        assert "import" in content or "def" in content, f"{variant['name']} generated empty or invalid content"
-
-        print(f"{variant['name']}: OK")
+def main():
+    args = parse_args()
+    if args.reload and args.workers != 1:
+        raise SystemExit("cannot use --reload with multiple workers")
+    uv_cfg = dict(
+        app="modules.server:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        log_level=args.log_level,
+        workers=args.workers,
+        lifespan=args.lifespan,
+        loop=args.loop,
+    )
+    uvicorn.run(**uv_cfg)
 
 if __name__ == "__main__":
-    for variant in config_variants:
-        run_parser_test(variant)
+    main()
 
 
-### ./aliases.py ###
+# placeholder for binary version\n
+# FILE: ./modules/configs/datasetconfig.py
+from pydantic import BaseModel, PrivateAttr
+from typing import Optional, Dict, Literal, Any
 
+TaskType = Literal["Image Processing", "Text Processing", "Audio Processing"]
+SubTaskType = Literal[
+    # Image
+    "Image Classification", "Object Detection", "Image Segmentation", "Image Generation",
+    # Text
+    "Text Classification", "Text Generation", "Machine Translation", "Text Summarization",
+    # Audio
+    "Speech Recognition", "Audio Classification", "Audio Generation", "Voice Conversion"
+]
 
-OPTIMIZER_ALIASES = {
-    "adam": "Adam",
-    "adamw": "AdamW",
-    "sgd": "SGD",
-    "nadam": "NAdam",
-    "radam": "RAdam",
-    "lion": "Lion",  
-    "rmsprop": "RMSprop",
-    "adagrad": "Adagrad",
-}
+class DatasetConfig(BaseModel):
+    name:str = "default_dataset"
+    split_type: Literal["include", "exclude"] = "include"
+    label_type: Literal["folder-name", "file", "csv", "none"] = "folder-name"
+    label_map: Optional[Dict[str, int]] = None
+    return_format: Literal["raw", "dict", "tuple"] = "dict"
 
-LOSS_ALIASES = {
-    "crossentropy": "CrossEntropyLoss",
-    "focal": "FocalLoss",
-    "dice": "DiceLoss",
-    "mse": "MSELoss",
-    "l1": "L1Loss",
-    "bce": "BCELoss",
-    "bcewithlogits": "BCEWithLogitsLoss"
-}
+    # Text-specific
+    tokenizer_type: Optional[str] = None  
+    tokenizer_params: Optional[Dict[str, Any]] = None  
 
-METRIC_ALIASES = {
-    "accuracy": "Accuracy",
-    "f1": "F1Score",
-    "recall": "Recall",
-    "mae": "MeanAbsoluteError",
-    "mse": "MeanSquaredError",
-    "iou": "JaccardIndex",
-}
+    # Audio-specific
+    audio_duration: Optional[float] = None 
 
-### ./configs/__init__.py ###
+    # Task flags
+    include_prompt: Optional[bool] = None
+    include_target: Optional[bool] = None
+    text_pair: Optional[bool] = None
+    audio_pair: Optional[bool] = None
+    multi_class: Optional[bool] = None
+    multi_label: Optional[bool] = None
+    binary: Optional[bool] = None
 
+    _note: str = PrivateAttr(default="Tokenization/audio-specific logic not yet fully defined")
 
+class DataloaderConfig(BaseModel):
+    batch_size: int = 32
+    shuffle: bool = True
+    num_workers: int = 4
+    pin_memory: bool = True
+    drop_last: bool = False
+    prefetch_factor: Optional[int] = None  # TEMPORARY
+    persistent_workers: Optional[bool] = None  # TEMPORARY
 
+    _note: str = PrivateAttr(default="Dataloader fine-tuning (e.g., bucketing, custom collate) not yet implemented")
 
-### ./configs/modelconfig.py ###
-
-
+class DataIOConfig(BaseModel):
+    task: TaskType
+    subtask: SubTaskType
+    dataset: DatasetConfig
+    dataloader: DataloaderConfig
+\n
+# FILE: ./modules/configs/__init__.py
+\n
+# FILE: ./modules/configs/modelconfig.py
 from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Dict, Any, Optional, List
 from .registries.layerreg import LAYER_REGISTRY
@@ -159,19 +137,16 @@ class ModelConfig(BaseModel):
         if use_pretrained:
             if not pretrained:
                 raise ValueError("use_pretrained=True requires a 'pretrained' model.")
-            if layers:
-                raise ValueError("If 'use_pretrained' is True, 'layers' must be None.")
+            # if layers:
+            #     raise ValueError("If 'use_pretrained' is True, 'layers' must be None.")
         else:
             if not layers:
                 raise ValueError("use_pretrained=False requires 'layers' to be defined.")
-            if pretrained:
-                raise ValueError("If 'use_pretrained' is False, 'pretrained' must be None.")
+            # if pretrained:
+            #     raise ValueError("If 'use_pretrained' is False, 'pretrained' must be None.")
         return values
-
-
-### ./configs/preprocessingconfig.py ###
-
-
+\n
+# FILE: ./modules/configs/preprocessingconfig.py
 from pydantic import BaseModel, Field, field_validator
 from typing import Dict, Any
 from .registries.preprocessingreg import AUDIO_TRANSFORMS, IMAGE_TRANSFORMS, TEXT_TRANSFORMS
@@ -192,11 +167,118 @@ class PreprocessingStep(BaseModel):
             return v
         name = info.data.get("name")
         return TRANSFORM_REGISTRY.get(name, {})
+\n
+# FILE: ./modules/configs/registries/aliasreg.py
+UI_ALIASES = {
+    "optimizers": {
+        "adam": "Adam",
+        "adamw": "AdamW",
+        "sgd": "SGD",
+        "nadam": "NAdam",
+        "radam": "RAdam",
+        "lion": "Lion",
+        "rmsprop": "RMSprop",
+        "adagrad": "Adagrad"
+    },
+    "losses": {
+        "crossentropy": "CrossEntropyLoss",
+        "focal": "FocalLoss",
+        "dice": "DiceLoss",
+        "mse": "MSELoss",
+        "l1": "L1Loss",
+        "bce": "BCELoss",
+        "bcewithlogits": "BCEWithLogitsLoss"
+    },
+    "metrics": {
+        "accuracy": "Accuracy",
+        "f1": "F1Score",
+        "recall": "Recall",
+        "mae": "MeanAbsoluteError",
+        "mse": "MeanSquaredError",
+        "iou": "JaccardIndex"
+    },
+    "models": {
+        "visiontransformer": "ViT",
+        "resnet": "ResNet50",
+        "resnet18": "ResNet18",
+        "efficientnetb0": "EfficientNetB0",
+        "efficientnetb7": "EfficientNetB7",
+        "fasterrcnn": "FasterRCNN",
+        "maskrcnn": "MaskRCNN",
+        "deeplabv3": "DeepLabV3",
+        "conformer": "Conformer",
+        "wave2letter": "Wave2Letter",
+        "wavernn": "WaveRNN",
+        "glove": "GloVe",
+        "fasttext": "FastText",
+        "transformerencoderdecoder": "TransformerEncoderDecoder",
+        "xlmroberta": "XLMRoberta"
+    },
+    "layers": {
+        "conv1d": "Conv1d",
+        "conv2d": "Conv2d",
+        "conv3d": "Conv3d",
+        "convtranspose1d": "ConvTranspose1d",
+        "convtranspose2d": "ConvTranspose2d",
+        "convtranspose3d": "ConvTranspose3d",
+        "batchnorm1d": "BatchNorm1d",
+        "batchnorm2d": "BatchNorm2d",
+        "batchnorm3d": "BatchNorm3d",
+        "maxpool2d": "MaxPool2d",
+        "maxpool1d": "MaxPool1d",
+        "maxpool3d": "MaxPool3d",
+        "avgpool1d": "AvgPool1d",
+        "avgpool2d": "AvgPool2d",
+        "avgpool3d": "AvgPool3d",
+        "layernorm": "LayerNorm",
+        "lstm": "LSTM",
+        "dropout": "Dropout",
+        "dropout1d": "Dropout1d",
+        "dropout2d": "Dropout2d",
+        "dropout3d": "Dropout3d",
+        "embedding": "Embedding",
+        "pixelshuffle": "PixelShuffle",
+        "upsample": "Upsample",
+        "flatten": "Flatten",
+        "unfold": "Unfold",
+        "linear": "Linear",
+        "bilinear": "Bilinear",
+        "transformer": "Transformer",
+        "multiheadattention": "MultiheadAttention"
+    },
+    "subtasks": {
+        # Image
+        "classification": "classification",
+        "object-detection": "object_detection",
+        "image-segmentation": "segmentation",
+        "generation": "generation",
 
+        # Text
+        "text-classification": "classification",
+        "summarization": "summarisation",
+        "translation": "translation",
+        "text-generation": "generation",
 
-### ./configs/registries/layerreg.py ###
-
-
+        # Audio
+        "recognition": "recognition",
+        "audio-classification": "classification",
+        "audio-generation": "generation",
+        "conversion": "conversion"
+    },
+    "data_formats": {
+        "wav": "audio",
+        "mp3": "audio",
+        "flac": "audio",
+        "png": "imagefolder",
+        "jpeg": "imagefolder",
+        "jpg": "imagefolder",
+        "plain-text": "csv",
+        "csv": "csv",
+        "pickle": "other",
+        "pytorch-tensor": "other"
+    },
+}\n
+# FILE: ./modules/configs/registries/layerreg.py
 LAYER_REGISTRY = {
     "Linear": {"in_features": 128, "out_features": 64, "bias": True},
     "Bilinear": {"in1_features": 128, "in2_features": 128, "out_features": 64, "bias": True},
@@ -258,11 +340,8 @@ LAYER_REGISTRY = {
 
     "Flatten": {"start_dim": 1, "end_dim": -1},
     "Unfold": {"kernel_size": 3, "stride": 1, "padding": 0, "dilation": 1}
-}
-
-### ./configs/registries/lossreg.py ###
-
-
+}\n
+# FILE: ./modules/configs/registries/lossreg.py
 LOSS_REGISTRY = {
     "MSELoss": {"reduction": "mean"},
     "L1Loss": {"reduction": "mean"},
@@ -277,11 +356,8 @@ LOSS_REGISTRY = {
     "CosineEmbeddingLoss": {"margin": 0.0, "reduction": "mean"},
     "MultiMarginLoss": {"p": 1, "margin": 1.0, "reduction": "mean"},
 }
-
-
-### ./configs/registries/metricreg.py ###
-
-
+\n
+# FILE: ./modules/configs/registries/metricreg.py
 METRIC_REGISTRY = {
     "Accuracy": {},
     "Precision": {},
@@ -301,11 +377,8 @@ METRIC_REGISTRY = {
     "ExplainedVariance": {},
     "SpearmanCorrcoef": {},
 }
-
-
-### ./configs/registries/modelreg.py ###
-
-
+\n
+# FILE: ./modules/configs/registries/modelreg.py
 PRETRAINED_MODEL_REGISTRY = {
     "ResNet18": {"pretrained": True, "num_classes": 1000},
     "ResNet50": {"pretrained": True, "num_classes": 1000},
@@ -340,11 +413,8 @@ PRETRAINED_MODEL_REGISTRY = {
 
     "XLMRoberta": {"num_classes": 2, "dropout": 0.1, "pooler_type": "cls"}
 }
-
-
-### ./configs/registries/optimizerreg.py ###
-
-
+\n
+# FILE: ./modules/configs/registries/optimizerreg.py
 OPTIMIZER_REGISTRY = {
     "SGD": {"lr": 0.01, "momentum": 0.9, "weight_decay": 0.0, "nesterov": False},
     "Adam": {"lr": 0.001, "betas": (0.9, 0.999), "eps": 1e-8, "weight_decay": 0.0, "amsgrad": False},
@@ -357,11 +427,67 @@ OPTIMIZER_REGISTRY = {
     "RAdam": {"lr": 0.001, "betas": (0.9, 0.999), "eps": 1e-8, "weight_decay": 0.0},
     "ASGD": {"lr": 0.01, "lambd": 0.0001, "alpha": 0.75, "t0": 1e6, "weight_decay": 0.0},
 }
+\n
+# FILE: ./modules/configs/registries/preprocessingreg.py
+AUDIO_TRANSFORMS = {
+    "Speed": {"orig_freq": 16000, "factor": 1.0},
+    "AmplitudeToDB": {"stype": "power", "top_db": None},
+    "Resample": {
+        "orig_freq": 16000, "new_freq": 16000,
+        "resampling_method": "sinc_interp_hann", "lowpass_filter_width": 6,
+        "rolloff": 0.99, "beta": None, "dtype": None
+    },
+    "Fade": {"fade_in_len": 0, "fade_out_len": 0, "fade_shape": "linear"},
+    "Vol": {"gain": 1.0, "gain_type": "amplitude"},
+    "Loudness": {"sample_rate": 16000},
+    "AddNoise": {"snr": 10.0, "lengths": None},
 
+    "Spectrogram": {
+        "n_fft": 400, "win_length": None, "hop_length": None, "pad": 0,
+        "power": 2, "normalized": False, "center": True,
+        "pad_mode": "reflect", "onesided": True
+    },
+    "MelSpectrogram": {
+        "sample_rate": 16000, "n_fft": 400, "n_mels": 120,
+        "f_min": 0.0, "f_max": None, "hop_length": None
+    },
+    "MFCC": {
+        "sample_rate": 16000, "n_mfcc": 40, "dct_type": 2,
+        "norm": "ortho", "log_mels": False
+    },
+    "TimeStretch": {"n_freq": 201, "fixed_rate": None},
+    "FrequencyMasking": {"freq_mask_param": 30, "iid_masks": False},
+    "TimeMasking": {"time_mask_param": 40, "iid_masks": False, "p": 1.0},
+}
 
-### ./configs/registries/schedulerreg.py ###
+TEXT_TRANSFORMS = {
+    "RegexTokenizer": {"patterns_list": r"\w+"},
+    "SentencePieceTokenizer": {"sp_model_path": "model_path.model"},
+    "VocabTransform": {"vocab": []},
+    "ToTensor": {"dtype": "int64"},
+    "Truncate": {"max_seq_len": 128},
+    "PadTransform": {"max_length": 128, "pad_value": 0},
+    "AddToken": {"token": "<CLS>", "begin": True},
+    "BERTTokenizer": {"tokenizer": "facebook/bart-base"},
+    "LabelToIndex": {"label_names": []}
+}
 
-
+IMAGE_TRANSFORMS = {
+    "Resize": {"size": [224, 224], "interpolation": "bilinear"},
+    "RandomCrop": {"size": [224, 224], "padding": None, "pad_if_needed": False},
+    "RandomHorizontalFlip": {"p": 0.5},
+    "RandomRotation": {"degrees": 15, "interpolation": "NEAREST"},
+    "ColorJitter": {"brightness": 0.4, "contrast": 0.4, "saturation": 0.4, "hue": 0.1},
+    "Grayscale": {"num_output_channels": 1},
+    "RandomAdjustSharpness": {"sharpness_factor": 2, "p": 0.5},
+    "Normalize": {"mean": [0.5], "std": [0.5]},
+    "ConvertImageDtype": {"dtype": "float32"},
+    "ToTensor": {},
+    "RandomErasing": {"p": 0.5, "scale": [0.02, 0.33], "ratio": [0.3, 3.3], "value": 0},
+    "GaussianBlur": {"kernel_size": 3, "sigma": [0.1, 2.0]},
+}
+\n
+# FILE: ./modules/configs/registries/schedulerreg.py
 SCHEDULER_REGISTRY = {
     "StepLR": {"step_size": 30, "gamma": 0.1},
     "MultiStepLR": {"milestones": [30, 80], "gamma": 0.1},
@@ -369,11 +495,8 @@ SCHEDULER_REGISTRY = {
     "CosineAnnealingLR": {"T_max": 50, "eta_min": 0},
     "ReduceLROnPlateau": {"mode": "min", "factor": 0.1, "patience": 10},
 }
-
-
-### ./configs/registries/taskreg.py ###
-
-
+\n
+# FILE: ./modules/configs/registries/taskreg.py
 DEFAULTS = {
     "Image Classification": {
         "data_format": "imagefolder",
@@ -496,73 +619,8 @@ DEFAULTS = {
         ]
     }
 }
-
-
-### ./configs/registries/preprocessingreg.py ###
-
-
-AUDIO_TRANSFORMS = {
-    "Speed": {"orig_freq": 16000, "factor": 1.0},
-    "AmplitudeToDB": {"stype": "power", "top_db": None},
-    "Resample": {
-        "orig_freq": 16000, "new_freq": 16000,
-        "resampling_method": "sinc_interp_hann", "lowpass_filter_width": 6,
-        "rolloff": 0.99, "beta": None, "dtype": None
-    },
-    "Fade": {"fade_in_len": 0, "fade_out_len": 0, "fade_shape": "linear"},
-    "Vol": {"gain": 1.0, "gain_type": "amplitude"},
-    "Loudness": {"sample_rate": 16000},
-    "AddNoise": {"snr": 10.0, "lengths": None},
-
-    "Spectrogram": {
-        "n_fft": 400, "win_length": None, "hop_length": None, "pad": 0,
-        "power": 2, "normalized": False, "center": True,
-        "pad_mode": "reflect", "onesided": True
-    },
-    "MelSpectrogram": {
-        "sample_rate": 16000, "n_fft": 400, "n_mels": 128,
-        "f_min": 0.0, "f_max": None, "hop_length": None
-    },
-    "MFCC": {
-        "sample_rate": 16000, "n_mfcc": 40, "dct_type": 2,
-        "norm": "ortho", "log_mels": False
-    },
-    "TimeStretch": {"n_freq": 201, "fixed_rate": None},
-    "FrequencyMasking": {"freq_mask_param": 30, "iid_masks": False},
-    "TimeMasking": {"time_mask_param": 40, "iid_masks": False, "p": 1.0},
-}
-
-TEXT_TRANSFORMS = {
-    "RegexTokenizer": {"patterns_list": r"\w+"},
-    "SentencePieceTokenizer": {"sp_model_path": "model_path.model"},
-    "VocabTransform": {"vocab": []},
-    "ToTensor": {"dtype": "int64"},
-    "Truncate": {"max_seq_len": 128},
-    "PadTransform": {"max_length": 128, "pad_value": 0},
-    "AddToken": {"token": "<CLS>", "begin": True},
-    "BERTTokenizer": {"tokenizer": "facebook/bart-base"},
-    "LabelToIndex": {"label_names": []}
-}
-
-IMAGE_TRANSFORMS = {
-    "Resize": {"size": [224, 224], "interpolation": "bilinear"},
-    "RandomCrop": {"size": [224, 224], "padding": None, "pad_if_needed": False},
-    "RandomHorizontalFlip": {"p": 0.5},
-    "RandomRotation": {"degrees": 15, "interpolation": "NEAREST"},
-    "ColorJitter": {"brightness": 0.4, "contrast": 0.4, "saturation": 0.4, "hue": 0.1},
-    "Grayscale": {"num_output_channels": 1},
-    "RandomAdjustSharpness": {"sharpness_factor": 2, "p": 0.5},
-    "Normalize": {"mean": [0.5], "std": [0.5]},
-    "ConvertImageDtype": {"dtype": "float32"},
-    "ToTensor": {},
-    "RandomErasing": {"p": 0.5, "scale": [0.02, 0.33], "ratio": [0.3, 3.3], "value": 0},
-    "GaussianBlur": {"kernel_size": 3, "sigma": [0.1, 2.0]},
-}
-
-
-### ./configs/taskconfig.py ###
-
-
+\n
+# FILE: ./modules/configs/taskconfig.py
 from enum import Enum
 from typing import List, Literal, Optional
 
@@ -570,6 +628,7 @@ from pydantic import BaseModel, field_validator
 
 from .registries.taskreg import DEFAULTS
 
+# from .preprocessingconfig import PreprocessingStep
 
 class TaskType(str, Enum):
     ml = "ml"
@@ -579,17 +638,18 @@ class DataFormat(str, Enum):
     imagefolder = "imagefolder"
     csv = "csv"
     json = "json"
+    png = "png"
+    jpg = "jpg"
+    jpeg = "jpeg"
+    txt = "txt"
+    audio = "audio"
+    video = "video"
+    parquet = "parquet"
     other = "other"
 
 class DataType(str, Enum):
     file = "file"
     folder = "folder"
-
-class PreprocessingStep(BaseModel):
-    name: str
-    params: dict
-
-
 
 class TaskConfig(BaseModel):
     task_type: Literal["ml", "dl"]
@@ -597,9 +657,9 @@ class TaskConfig(BaseModel):
     sub_task: str
     data_format: Optional[DataFormat] = None
     data_type: Optional[DataType] = None
-    preprocessing: Optional[List[PreprocessingStep]] = None
+    # preprocessing: Optional[List[PreprocessingStep]] = None  #duplicate
 
-    @field_validator("data_format", "data_type", "preprocessing", mode="before")
+    @field_validator("data_format", "data_type", mode="before")
     def set_defaults(cls, v, info):
         if v is not None:
             return v
@@ -613,12 +673,9 @@ class TaskConfig(BaseModel):
         if not defaults:
             return None
         field_name = info.field_name
-        return defaults.get(field_name)
-
-### ./configs/trainconfig.py ###
-
-
-from typing import Any, Dict, List, Optional
+        return defaults.get(field_name)\n
+# FILE: ./modules/configs/trainconfig.py
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from .registries.lossreg import LOSS_REGISTRY
@@ -626,6 +683,13 @@ from .registries.metricreg import METRIC_REGISTRY
 from .registries.optimizerreg import OPTIMIZER_REGISTRY
 from .registries.schedulerreg import SCHEDULER_REGISTRY
 
+MonitoringTool = Literal[
+    "use_tensorboard", 
+    "use_wandb", 
+    "use_mlflow", 
+    "resource_alerts", 
+    "threshold_alerts"
+]
 
 class OptimizerConfig(BaseModel):
     name: str
@@ -682,106 +746,81 @@ class TrainingConfig(BaseModel):
     loss: Optional[LossConfig] = None
     metrics: Optional[List[MetricConfig]] = None
     early_stopping: Optional[EarlyStoppingConfig] = None
-
-    @field_validator("optimizer", "scheduler", "loss", "metrics", "early_stopping", mode="before")
+    monitoring: Optional[List[MonitoringTool]] = Field(default_factory=list)
+    @field_validator("optimizer", "scheduler", "loss", "metrics", "early_stopping","monitoring", mode="before")
     def inject_defaults(cls, v):
         return v or None
-
-
-### ./configs/datasetconfig.py ###
-
-
-from pydantic import BaseModel, PrivateAttr
-from typing import Optional, Dict, Literal, Any
-
-TaskType = Literal["Image Processing", "Text Processing", "Audio Processing"]
-SubTaskType = Literal[
-    # Image
-    "Image Classification", "Object Detection", "Image Segmentation", "Image Generation",
-    # Text
-    "Text Classification", "Text Generation", "Machine Translation", "Text Summarization",
-    # Audio
-    "Speech Recognition", "Audio Classification", "Audio Generation", "Voice Conversion"
-]
-
-class DatasetConfig(BaseModel):
-    split_type: Literal["include", "exclude"] = "include"
-    label_type: Literal["folder-name", "file", "csv", "none"] = "folder-name"
-    label_map: Optional[Dict[str, int]] = None
-    return_format: Literal["raw", "dict", "tuple"] = "dict"
-
-    # Text-specific
-    tokenizer_type: Optional[str] = None  
-    tokenizer_params: Optional[Dict[str, Any]] = None  
-
-    # Audio-specific
-    audio_duration: Optional[float] = None 
-
-    # Task flags
-    include_prompt: Optional[bool] = None
-    include_target: Optional[bool] = None
-    text_pair: Optional[bool] = None
-    audio_pair: Optional[bool] = None
-    multi_class: Optional[bool] = None
-    multi_label: Optional[bool] = None
-    binary: Optional[bool] = None
-
-    _note: str = PrivateAttr(default="Tokenization/audio-specific logic not yet fully defined")
-
-class DataloaderConfig(BaseModel):
-    batch_size: int = 32
-    shuffle: bool = True
-    num_workers: int = 4
-    pin_memory: bool = True
-    drop_last: bool = False
-    prefetch_factor: Optional[int] = None  # TEMPORARY
-    persistent_workers: Optional[bool] = None  # TEMPORARY
-
-    _note: str = PrivateAttr(default="Dataloader fine-tuning (e.g., bucketing, custom collate) not yet implemented")
-
-class DataIOConfig(BaseModel):
-    task: TaskType
-    subtask: SubTaskType
-    dataset: DatasetConfig
-    dataloader: DataloaderConfig
-
-
-### ./main.py ###
-
-
+\n
+# FILE: ./modules/__init__.py
+\n
+# FILE: ./modules/main.py
+import argparse
 import uvicorn
+
+def parse_args():
+    p = argparse.ArgumentParser(prog="run")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.add_argument("--reload", action="store_true")
+    p.add_argument("--log-level", default="info")
+    p.add_argument("--workers", type=int, default=1)
+    p.add_argument("--lifespan", choices=("on","off","auto"), default="on")
+    p.add_argument("--loop", default="auto")
+    return p.parse_args()
+
 def main():
-    uvicorn.run(
-        "server:app",
-        host="127.0.0.1",
-        port=8000,
-        reload=True,
-        log_level="info",
-        workers=1,
-        lifespan="on",
-        loop="auto"
+    args = parse_args()
+    if args.reload and args.workers != 1:
+        raise SystemExit("cannot use --reload with multiple workers")
+    uv_cfg = dict(
+        app="server:app",
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
+        log_level=args.log_level,
+        workers=args.workers,
+        lifespan=args.lifespan,
+        loop=args.loop,
     )
-    
+    uvicorn.run(**uv_cfg)
+
 if __name__ == "__main__":
     main()
 
-### ./parser.py ###
-
-
+\n
+# FILE: ./modules/parser.py
 import json
 import argparse
-import os
 from pathlib import Path
 import jinja2
 import isort
 import black
+from thefuzz import process
+from configs.registries import (
+    optimizerreg,
+    lossreg,
+    metricreg,
+    layerreg,
+    modelreg,
+)
 
-try:
-    from aliases import OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC_ALIASES
-except ImportError:
-	OPTIMIZER_ALIASES, LOSS_ALIASES, METRIC_ALIASES = {},{},{}
-	
-	
+REGISTRY_MAP = {
+    "optimizers": optimizerreg.OPTIMIZER_REGISTRY,
+    "losses": lossreg.LOSS_REGISTRY,
+    "metrics": metricreg.METRIC_REGISTRY,
+    "layers": layerreg.LAYER_REGISTRY,
+    "models": modelreg.PRETRAINED_MODEL_REGISTRY,
+}
+
+def fuzzy_match(query: str, choices: list[str], threshold: int = 75) -> str:
+    """
+    only with variation of Case like "input_dim or inputDim"or contraction "mfcc or MFCC"
+    """
+    matched, score = process.extractOne(query, choices)
+    if score >= threshold:
+        return matched
+    raise ValueError(f"No suitable match for '{query}'. Closest match was '{matched}' with a score of {score}.")
+
 def setup_environment():
     base = Path(__file__).parent.parent
     return jinja2.Environment(
@@ -804,181 +843,164 @@ TASK_MAP = {
 }
 
 DEFAULT_OUTPUT = Path(__file__).parent.parent / "outputs" / "out.py"
-        
-def resolve_template_from_alias(section: str, cfg: dict) -> str:
-    if section == "optimizer":
-        return normalize_name(cfg["optimizer"]["name"], OPTIMIZER_ALIASES)
-    elif section == "loss":
-        return normalize_name(cfg["loss"]["name"], LOSS_ALIASES)
-    elif section == "metric":
-        return normalize_name(cfg["metric"]["name"], METRIC_ALIASES)
-    else:
-        raise ValueError(f"Unsupported alias-resolved section: {section}")
-        
-def normalize_name(name: str, alias_map: dict) -> str:
-    key = name.strip().lower()
-    return alias_map.get(key, name)
-    
-def normalize_config(cfg):
-    opt = cfg.get("optimizer")
-    if opt and "name" in opt:
-        opt["name"] = normalize_name(opt["name"], OPTIMIZER_ALIASES)
 
-    loss = cfg.get("loss")
-    if loss and "name" in loss:
-        loss["name"] = normalize_name(loss["name"], LOSS_ALIASES)
-
-    metric = cfg.get("metric")
-    if metric and "name" in metric:
-        metric["name"] = normalize_name(metric["name"], METRIC_ALIASES)
-        
 def read_config(path):
     return json.loads(Path(path).read_text())
 
+def auto_resolve_name(category: str, provided_name: str) -> str:
+    registry = REGISTRY_MAP.get(category)
+    if not registry:
+        raise ValueError(f"No registry found for category '{category}'.")
+    return fuzzy_match(provided_name, list(registry.keys()))
 
-SUBTASK_MAPPING = {
-    "image classification": "classification",
-    "object detection": "object_detection",
-    "image segmentation": "segmentation",
-    "image generation": "generation",
-    "text classification": "classification",
-    "text generation": "generation",
-    "machine translation": "translation",
-    "text summarization": "summarisation",
-    "speech recognition": "recognition",
-    "audio classification": "classification",
-    "audio generation": "generation",
-    "voice conversion": "conversion"
-}
+def normalize_names(cfg: dict):
+    training = cfg.get("training", {})
+    if optimizer := training.get("optimizer"):
+        optimizer["name"] = auto_resolve_name("optimizers", optimizer["name"])
+    if loss := training.get("loss"):
+        loss["name"] = auto_resolve_name("losses", loss["name"])
+    for metric in training.get("metrics", []):
+        metric["name"] = auto_resolve_name("metrics", metric["name"])
+    model_cfg = cfg.get("model", {})
+    if pretrained := model_cfg.get("pretrained", {}):
+        pretrained["name"] = auto_resolve_name("models", pretrained["name"])
+    elif layers := model_cfg.get("layers", []):
+        for layer in layers:
+            layer["type"] = auto_resolve_name("layers", layer["type"])
 
-def resolve_name(section, cfg):
-    main_task = cfg["data"]["main_task"].lower()
-    sub_task_original = cfg["data"]["sub_task"].lower()
-
-    TASK_MAPPING = {
-        'image processing': 'image',
-        'text processing': 'text',
-        'audio processing': 'audio',
-        'ml': 'ML'
-    }
-
-    task_dir = TASK_MAPPING.get(main_task)
-    if task_dir is None:
-        raise ValueError(f"No task mapping found for main_task: '{main_task}'")
-
-    subtask_dir = SUBTASK_MAPPING.get(sub_task_original)
-    if subtask_dir is None and section == 'loaders':
-        raise ValueError(f"No subtask mapping for sub_task: '{sub_task_original}'")
-
-    if section == "models" and cfg.get("model", {}).get("modelType") == "custom":
-        return TASK_MAP["custom_model"]
-
+def resolve_template(section, cfg):
+    task_available = ["audio", "video", "image", "text", "tabular"]
+    subtask_available = ["classification", "regression", "generation"]
+    task_ui = cfg["main_task"].split()[0]
+    subtask_ui = cfg["sub_task"]
+    task_dir = fuzzy_match(task_ui, task_available)
+    subtask_dir = fuzzy_match(subtask_ui, subtask_available)
+    if section == "models":
+        if cfg.get("model", {}).get("use_pretrained", False):
+            return TASK_MAP["models"].format(task=task_dir)
+        else:
+            return TASK_MAP["custom_model"]
     if section == "loaders":
         return TASK_MAP[section].format(task=task_dir, subtask=subtask_dir)
+    return TASK_MAP[section].format(task=task_dir)
 
-    else:
-        return TASK_MAP[section].format(task=task_dir, subtask='')
-
-
-TASK_MAP = {
-    "imports": "imports.j2",
-    "models": "models/{task}.j2",
-    "transforms": "data/transforms/{task}.j2",
-    "loaders": "data/loaders/{task}/{subtask}.j2",
-    "custom_model": "models/layers.j2",
-    "optimizer": "train/optimizers.j2",
-    "loss": "train/losses.j2",
-    "metrics": "train/metrics.j2"
-}
-
-def render_template(name, context):
+def render_template(path, context):
     try:
-        tpl = env.get_template(name)
+        template = env.get_template(path)
+        # Filter out empty dictionary parameters
+        filtered_context = filter_empty_dicts(context)
+        return template.render(
+            config=filtered_context,
+            METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
+            OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
+            LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
+            LAYER_REGISTRY=layerreg.LAYER_REGISTRY
+        )
     except jinja2.exceptions.TemplateNotFound:
-        raise ValueError(f"Template not found: {name}")
-    return tpl.render(config=context)
+        raise ValueError(f"Template {path} not found.")
+
+def filter_empty_dicts(data):
+    if isinstance(data, dict):
+        return {k: filter_empty_dicts(v) for k, v in data.items() if not (isinstance(v, dict) and not v)}
+    elif isinstance(data, list):
+        return [filter_empty_dicts(item) for item in data]
+    else:
+        return data
 
 def assemble(cfg):
-    normalize_config(cfg)
+    normalize_names(cfg)
     parts = []
-
-    imports_template = resolve_name("imports", cfg)
+    imports_template = resolve_template("imports", cfg)
     parts.append(render_template(imports_template, cfg))
-
-    sections = ["models", "transforms", "loaders"]
-    for sec in sections:
-        template_name = resolve_name(sec, cfg)
-        parts.append(render_template(template_name, cfg))
-
+    model_template = resolve_template("models", cfg)
+    parts.append(render_template(model_template, cfg))
+    transforms_template = resolve_template("transforms", cfg)
+    parts.append(render_template(transforms_template, cfg).strip())
+    if dataloading_code := cfg.get("dataloading"):
+        parts.append(dataloading_code.strip())
     static_templates = [
         "setup.j2",
         "train/utils.j2",
         "train/train_loop.j2",
-        "train/eval_loop.j2"
+        "train/eval_loop.j2",
+        "train/monitoring.j2",
+        "train/optimizers.j2",
+        "train/losses.j2",
+        "train/metrics.j2",
+        "runner.j2",
     ]
     for template in static_templates:
         if template in env.list_templates():
-            parts.append(env.get_template(template).render(config=cfg))
-
-    # shared_components = ["train/optimizers.j2", "train/losses.j2", "train/metrics.j2"]
-    # for shared in shared_components:
-    #     parts.append(env.get_template(shared).render(config=cfg))
-
-    if "monitoring" in cfg:
-        parts.append(env.get_template("train/monitoring.j2").render(config=cfg))
-
-    if "runner.j2" in env.list_templates():
-        parts.append(env.get_template("runner.j2").render(config=cfg))
-
-    combined_code = "\n\n".join(parts)
-    return combined_code
-
+            parts.append(env.get_template(template).render(
+                config=cfg,
+                METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
+                OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
+                LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
+                LAYER_REGISTRY=layerreg.LAYER_REGISTRY
+            ))
+    return "\n\n".join(parts)
 
 def write_output(code: str, output_path: Path):
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    # remove duplicates, organize imports 
-    code = isort.code(code)
-    # format code, remove extra newlines
-    mode = black.FileMode(line_length=88)
-    code = black.format_str(code, mode=mode)
-    output_path.write_text(code)
 
+    # Debug: Write the raw code to a file for inspection
+    raw_path = output_path.with_name(f"{output_path.stem}_raw{output_path.suffix}")
+    raw_path.write_text(code)
+    print(f"Raw code written to {raw_path}")
+    # Debug: Print the generated code before formatting
+    print("Generated Code Before Formatting:")
+    print(code)
+
+    try:
+        code = isort.code(code)
+        mode = black.FileMode(line_length=88)
+        code = black.format_str(code, mode=mode)
+    except black.parsing.InvalidInput as e:
+        print(f"Black formatting error: {e}")
+        print("Generated Code Before Formatting:")
+        print(code)
+        raise
+
+    # Debug: Print the generated code after formatting
+    print("Generated Code After Formatting:")
+    print(code)
+
+    output_path.write_text(code)
+    print(f"Formatted code written to {output_path}")
 
 def get_output_path(user_path: str = None) -> Path:
-    if user_path:
-        return Path(user_path)
-    path = DEFAULT_OUTPUT
+    path = Path(user_path) if user_path else DEFAULT_OUTPUT
     if path.exists():
         idx = 1
-        while True:
-            candidate = path.with_name(f"{path.stem}_{idx}{path.suffix}")
-            if not candidate.exists():
-                return candidate
+        while (candidate := path.with_name(f"{path.stem}_{idx}{path.suffix}")).exists():
             idx += 1
+        return candidate
     return path
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate code from templates.")
+    parser = argparse.ArgumentParser(description="Generate code from fuzzy-matched templates.")
     parser.add_argument("config", help="Path to config JSON")
     parser.add_argument("--output", help="Optional output path for generated code")
     args = parser.parse_args()
     cfg = read_config(args.config)
+
+    # Debug: Print the read JSON configuration
+    print(f"Read JSON configuration from {args.config}:")
+    print(json.dumps(cfg, indent=2))
+
     code = assemble(cfg)
     out_path = get_output_path(args.output)
     write_output(code, out_path)
-
-    results = {"generated_path": os.path.abspath(out_path)}
-    print(json.dumps(results)) 
-    return results
-
+    print(json.dumps({"generated_path": str(out_path.resolve())}))
 if __name__ == "__main__":
     main()
 
-### ./server.py ###
-
-
+if __name__ == "__main__":
+    main()\n
+# FILE: ./modules/server.py
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field, model_validator
 from subprocess import run as subprocess_run, PIPE
 from pathlib import Path
@@ -988,10 +1010,11 @@ import os
 import sys
 from typing import Any, Dict, List, Literal, Optional
 import shutil
+import ast
+import toml
 
-
-from configs.datasetconfig import DataIOConfig
-from configs.taskconfig import TaskConfig
+# from configs.datasetconfig import DataIOConfig
+from configs.taskconfig import DataFormat, DataType
 from configs.preprocessingconfig import PreprocessingStep
 from configs.modelconfig import ModelConfig
 from configs.trainconfig import TrainingConfig
@@ -999,48 +1022,102 @@ from configs.trainconfig import TrainingConfig
 app = FastAPI()
 
 DEFAULT_BASE_PATH = Path(__file__).parent # current directory of this script
+print(f"Default base path set to: {DEFAULT_BASE_PATH}")
 
 
+@app.get("/", include_in_schema=False)
+async def root():
+    return RedirectResponse(url="/docs",status_code=308)
 
-class GenerateDataModel(BaseModel):
-    data: TaskConfig
-    dataloading: DataIOConfig
+class GeneratePayload(BaseModel):
+    task_type: Literal["ml", "dl"]
+    main_task: str
+    sub_task: str
+    data_format: Optional[DataFormat] = None
+    data_type: Optional[DataType] = None
+    dataloading: str = Field(
+        ...,
+        description="Data loading configuration as a string. This will have the user's custom data loading code."
+    )
     preprocessing: Optional[List[PreprocessingStep]] = Field(
         None, description="List of preprocessing steps to apply to the data"
     )
     model: ModelConfig
     training: TrainingConfig
-
-
-
-class GeneratePayload(BaseModel):
-    data: GenerateDataModel
     base_path: str = str(DEFAULT_BASE_PATH)
 
 
-DATASETS_ROOT = Path("/home/haroon/REPOS/backend/dataset")
+
+
+DATASETS_ROOT = DEFAULT_BASE_PATH / Path("/dataset")
+
+
+def parse_imports_from_code(code: str):
+    """Extract imported packages from Python code."""
+    imported_packages = set()
+    tree = ast.parse(code)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imported_packages.add(alias.name.split('.')[0])
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                imported_packages.add(node.module.split('.')[0])
+    return imported_packages
+
+# Map imported module names to PyPI package names 
+IMPORT_TO_PACKAGE_MAP = {
+    "PIL": "pillow",
+    "sklearn": "scikit-learn",
+
+}
+def update_pyproject_toml(pyproject_path: Path, packages: set):
+    if not pyproject_path.is_file():
+        # Create minimal PEP 621-compliant structure
+        pyproject_data = {
+            "project": {
+                "dependencies": []
+            }
+        }
+    else:
+        pyproject_data = toml.load(pyproject_path)
+
+    dependencies = set(pyproject_data.get("project", {}).get("dependencies", []))
+    
+    # ignore built-in
+    builtin_packages = {"sys", "os", "json", "logging", "pathlib", "shutil", "tempfile","random", "subprocess", "ast", "typing"}
+    packages -= builtin_packages
+
+    resolved_packages = set()
+    for pkg in packages:
+        resolved_pkg = IMPORT_TO_PACKAGE_MAP.get(pkg, pkg)
+        resolved_packages.add(resolved_pkg)
+
+    existing_dep_names = {dep.split(">=")[0].lower() for dep in dependencies}
+    new_packages = {f"{pkg}>=0" for pkg in resolved_packages if pkg.lower() not in existing_dep_names}
+
+    if new_packages:
+        dependencies.update(new_packages)
+        pyproject_data["project"]["dependencies"] = sorted(dependencies)
+        pyproject_path.parent.mkdir(parents=True, exist_ok=True)
+        toml.dump(pyproject_data, pyproject_path.open("w"))
+
 
 @app.post("/generate")
 async def generate(payload: GeneratePayload):
     base_path = Path(payload.base_path)
     parser_path = base_path / "parser.py"
-    if not parser_path.is_file():
-        return JSONResponse(status_code=400, content={"error": "parser.py not found"})
-
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
-        cfg_dict = payload.data.model_dump()
-
-        dataset_name = cfg_dict["dataloading"]["dataset"].get("name")
-        if not dataset_name:
-            return JSONResponse(status_code=400, content={"error": "Dataset name not provided in 'data.dataloading.dataset.name'"})
-
-        full_root_path = DATASETS_ROOT / dataset_name
-
-        cfg_dict["data"]["root"] = str(full_root_path)
-
+        cfg_dict = payload.model_dump()
+        cfg_dict["dataloading"] = payload.dataloading.strip()
         json.dump(cfg_dict, temp_config)
         temp_config.flush()
         temp_config_path = temp_config.name
+
+        # Debug: Print the JSON configuration
+        print(f"Written JSON configuration to {temp_config_path}:")
+        with open(temp_config_path, 'r') as f:
+            print(f.read())
 
     try:
         result = subprocess_run(
@@ -1052,25 +1129,27 @@ async def generate(payload: GeneratePayload):
         )
         if result.returncode != 0:
             return JSONResponse(status_code=500, content={"error": result.stderr})
-
         parser_output = json.loads(result.stdout.strip())
         generated_path = Path(parser_output["generated_path"])
-
+        # Resolve paths
         pyproject_src = base_path.parent / "pyproject.toml"
+        pyproject_dst = generated_path.parent / "pyproject.toml"
+        # copy or touch pyproject.toml
         if pyproject_src.is_file():
-            shutil.copy(pyproject_src, generated_path.parent / "pyproject.toml")
-
+            shutil.copy(pyproject_src, pyproject_dst)
+        else:
+            pyproject_dst.touch()
         dest_config_path = generated_path.parent / "config.json"
         shutil.copy(temp_config_path, dest_config_path)
-
+        # Parse imports and update pyproject.toml
+        generated_code = generated_path.read_text()
+        imported_packages = parse_imports_from_code(generated_code)
+        update_pyproject_toml(pyproject_dst, imported_packages)
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
-
     finally:
         os.unlink(temp_config_path)
-
     return JSONResponse(status_code=200, content={"generated_path": str(generated_path)})
-
 
 
 class RunPayload(BaseModel):
@@ -1104,7 +1183,11 @@ async def run(payload: RunPayload):
             subprocess_run(["brew", "install", "uv"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
         except Exception:
             raise RuntimeError("Failed to install uv. install pip or brew first.")
-        subprocess_run([uv, "sync"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
+        
+        try:
+            subprocess_run([uv, "sync"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
+        except Exception:
+            raise RuntimeError("Failed to sync uv environment. Make sure uv is installed correctly.")
         
         exec_result = subprocess_run(
             [python_exec, str(generated_path)],
@@ -1222,3 +1305,72 @@ async def inference(payload: InferPayload):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
     
+\n
+# FILE: ./modules/test_parser.py
+import subprocess
+import tempfile
+import json
+import os
+from pathlib import Path
+
+base_dir = Path(__file__).parent
+
+config_variants = [
+    {
+        "name": "pretrained_image_classification",
+        "config": {
+            "mainTask": "classification",
+            "subTask": "image",
+            "modelType": "pretrained"
+        }
+    },
+    {
+        "name": "custom_audio_classification",
+        "config": {
+            "mainTask": "classification",
+            "subTask": "audio",
+            "modelType": "custom"
+        }
+    },
+    {
+        "name": "pretrained_text_generation",
+        "config": {
+            "mainTask": "generation",
+            "subTask": "text",
+            "modelType": "pretrained"
+        }
+    },
+    # Add more variations for testing
+]
+
+def run_parser_test(variant):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = Path(tmpdir) / "config.json"
+        config_path.write_text(json.dumps(variant["config"]))
+
+        result = subprocess.run(
+            ["python", "parser.py", str(config_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=base_dir
+        )
+
+        assert result.returncode == 0, f"{variant['name']} failed:\n{result.stderr}"
+        try:
+            output = json.loads(result.stdout.strip())
+        except Exception:
+            raise AssertionError(f"{variant['name']} produced invalid JSON output:\n{result.stdout}")
+
+        out_path = Path(output["generated_path"])
+        assert out_path.exists(), f"{variant['name']} did not create output file"
+
+        content = out_path.read_text()
+        assert "import" in content or "def" in content, f"{variant['name']} generated empty or invalid content"
+
+        print(f"{variant['name']}: OK")
+
+if __name__ == "__main__":
+    for variant in config_variants:
+        run_parser_test(variant)
+\n

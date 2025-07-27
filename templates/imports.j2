@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import json
 
-{% if config.data.data_format == "imagefolder" %}
+{% if config.data_format == "imagefolder" %}
 from PIL import Image
 from torchvision import transforms as T
 {% endif %}
@@ -24,7 +24,7 @@ import torch.optim as optim
 import torchmetrics
 {% endif %}
 
-{% set main_task = config.data.main_task.lower() %}
+{% set main_task = config.main_task.lower() %}
 {% if "audio" in main_task %}
 import torchaudio
 import torchaudio.transforms  as T
@@ -35,15 +35,15 @@ from torchtext.transforms import ToTensor
 from transformers import AutoTokenizer
 {% endif %}
 
-{% if config.data.sub_task.lower() == "text generation" %}
+{% if config.sub_task.lower() == "text generation" %}
 from transformers import AutoModelForSeq2SeqLM
 from torchmetrics.text import BLEUScore
 {% endif %}
 
-{% if config.data.sub_task.lower() == "speech recognition" %}
+{% if config.sub_task.lower() == "speech recognition" %}
 import torchaudio.functional as F
 {% endif %}
 
-{% if config.data.sub_task.lower() == "image segmentation" %}
+{% if config.sub_task.lower() == "image segmentation" %}
 import segmentation_models_pytorch as smp
 {% endif %}
