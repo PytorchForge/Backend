@@ -1,20 +1,22 @@
-# This workflow will install Python dependencies with uv and build an executable single file
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
-name: Build Python Binary
+name: Build Python Binary for server
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  release:
+    types: [created]
 
 permissions:
-  contents: read
+  contents: write  
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -31,19 +33,22 @@ jobs:
 
     - name: Install Python dependencies
       run: uv sync
+
     - name: Install pipx
       run: |
-        python3 -m pip install --upgrade pip
-        python3 -m pip install pipx
-        python3 -m pipx ensurepath
+        python -m pip install --upgrade pip
+        python -m pip install pipx
+        python -m pipx ensurepath
 
-    - name: Install pyinstaller
+    - name: Install PyInstaller
       run: pipx install pyinstaller
 
-
-
-    - name: Build executable with PyInstaller
+    - name: Build with PyInstaller
+      shell: bash
       run: |
+        SEP=":"
+        if [[ "${{ runner.os }}" == "Windows" ]]; then SEP=";"; fi
+
         pyinstaller modules/main.py \
           --name main \
           --onefile \
@@ -63,13 +68,19 @@ jobs:
           --hidden-import=configs.registries.metricreg \
           --hidden-import=configs.registries.layerreg \
           --hidden-import=configs.registries.modelreg \
-          --add-data "templates:templates" \
-          --add-data "modules:modules" \
-          --add-data "pyproject.toml:."
+          --add-data "templates${SEP}templates" \
+          --add-data "modules${SEP}modules" \
+          --add-data "pyproject.toml${SEP}."
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: main-linux
-        path: dist/main
+        name: main-${{ runner.os }}
+        path: dist/main*
+
+    - name: Upload to GitHub Release
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v2
+      with:
+          files: dist/main*
 
