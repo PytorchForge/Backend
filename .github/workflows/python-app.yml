@@ -1,12 +1,11 @@
 name: Build Python Binary
+permissions:
+  contents: write
 
 on:
   release:
     types: [created]
-
-permissions:
-  contents: write
-
+  workflow_dispatch:
 jobs:
   build:
     strategy:
