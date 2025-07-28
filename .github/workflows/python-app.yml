@@ -64,23 +64,7 @@ jobs:
           --add-data "templates${SEP}templates" \
           --add-data "modules${SEP}modules" \
           --add-data "pyproject.toml${SEP}."
-    - name: Rename binary to Tauri target triple format
-      shell: bash
-      run: |
-        if [[ "${{ runner.os }}" == "Linux" ]]; then
-          TRIPLE="x86_64-unknown-linux-gnu"
-          EXT=""
-        elif [[ "${{ runner.os }}" == "macOS" ]]; then
-          TRIPLE="aarch64-apple-darwin"
-          EXT=""
-        elif [[ "${{ runner.os }}" == "Windows" ]]; then
-          TRIPLE="x86_64-pc-windows-msvc"
-          EXT=".exe"
-        else
-          echo "Unsupported OS"; exit 1
-        fi
 
-        mv "dist/server${EXT}" "dist/server-${TRIPLE}${EXT}"
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
