@@ -1,5 +1,14 @@
 import argparse
 import uvicorn
+import sys
+
+from pathlib import Path
+if getattr(sys, 'frozen', False):
+    sys.path.insert(0, str(Path(sys._MEIPASS) / "modules")) # add to path for bundled app
+    sys.path.insert(0, str(Path(sys._MEIPASS) / "templates"))
+else:
+    sys.path.insert(0, str(Path(__file__).parent))
+
 
 def parse_args():
     p = argparse.ArgumentParser(prog="run")
@@ -8,29 +17,28 @@ def parse_args():
     p.add_argument("--reload", action="store_true")
     p.add_argument("--log-level", default="info")
     p.add_argument("--workers", type=int, default=1)
-    p.add_argument("--lifespan", choices=("on","off","auto"), default="on")
+    p.add_argument("--lifespan", choices=("on", "off", "auto"), default="on")
     p.add_argument("--loop", default="auto")
-    return p.parse_args()
+    return p.parse_known_args()[0]
 
-# remove the `reload` option when building for production
 def main():
     args = parse_args()
+    is_frozen = getattr(sys, "frozen", False)
+
     if args.reload and args.workers != 1:
         raise SystemExit("cannot use --reload with multiple workers")
-    uv_cfg = dict(
+
+    uvicorn.run(
         app="server:app",
         host=args.host,
         port=args.port,
-        # reload=args.reload,
-        reload=True, 
-        reload_dirs=["modules", "templates",],
+        reload=(args.reload and not is_frozen),
+        reload_dirs=["modules", "templates"],
         log_level=args.log_level,
         workers=args.workers,
         lifespan=args.lifespan,
         loop=args.loop,
     )
-    uvicorn.run(**uv_cfg)
 
 if __name__ == "__main__":
     main()
-

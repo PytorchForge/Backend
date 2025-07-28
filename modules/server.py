@@ -31,7 +31,13 @@ app.add_middleware(
     allow_headers=["*"],  
 )
 
-DEFAULT_BASE_PATH = Path(__file__).parent # current directory of this script
+
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(sys._MEIPASS)
+else:
+    BASE_DIR = Path(__file__).parent
+
+DEFAULT_BASE_PATH = BASE_DIR
 print(f"Default base path set to: {DEFAULT_BASE_PATH}")
 
 
@@ -166,8 +172,9 @@ def update_pyproject_toml(pyproject_path: Path, packages: set):
 
 @app.post("/generate")
 async def generate(payload: GeneratePayload):
-    base_path = Path(payload.base_path)
-    parser_path = base_path / "parser.py"
+    base_path = Path(payload.base_path) if payload.base_path else DEFAULT_BASE_PATH
+    parser_path = (BASE_DIR / "modules" / "parser.py").resolve()
+
 
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
         cfg_dict = payload.model_dump()
@@ -177,8 +184,10 @@ async def generate(payload: GeneratePayload):
         temp_config_path = temp_config.name
 
     try:
+        python_exec = "python3" if getattr(sys, "frozen", False) else sys.executable
+
         result = subprocess_run(
-            [sys.executable, str(parser_path), temp_config_path],
+            [python_exec, str(parser_path), temp_config_path],
             stdout=PIPE,
             stderr=PIPE,
             text=True,
@@ -190,15 +199,12 @@ async def generate(payload: GeneratePayload):
         print("Subprocess STDERR:")
         print(result.stderr)
 
-        # Check for subprocess errors
         if result.returncode != 0:
             return JSONResponse(status_code=500, content={"error": result.stderr.strip()})
 
-        # Ensure valid stdout
         if not result.stdout.strip():
             return JSONResponse(status_code=500, content={"error": "Parser returned empty output"})
         
-        # Parse JSON output from stdout
         try:
             parser_output = json.loads(result.stdout.strip())
         except json.JSONDecodeError as e:

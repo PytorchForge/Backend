@@ -14,6 +14,17 @@ from configs.registries import (
     modelreg,
 )
 
+
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(sys._MEIPASS)
+else:
+    BASE_DIR = Path(__file__).resolve().parent.parent
+
+sys.path.insert(0, str(BASE_DIR / "modules"))
+sys.path.insert(0, str(BASE_DIR / "templates"))
+
+DEFAULT_BASE_PATH = BASE_DIR
+
 REGISTRY_MAP = {
     "optimizers": optimizerreg.OPTIMIZER_REGISTRY,
     "losses": lossreg.LOSS_REGISTRY,
@@ -35,6 +46,9 @@ def fuzzy_match(query: str, choices: list[str], threshold: int = 75) -> str:
 
 def setup_environment():
     base = Path(__file__).parent.parent
+    if getattr(sys, 'frozen', False):
+        # If running as a bundled app, use the _MEIPASS directory
+        base = Path(sys._MEIPASS)
     return jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(base / "templates")),
         keep_trailing_newline=True,
@@ -55,7 +69,7 @@ TASK_MAP = {
     "metrics": "train/metrics.j2"
 }
 
-DEFAULT_OUTPUT = Path(__file__).parent.parent / "outputs" / "out.py"
+DEFAULT_OUTPUT = BASE_DIR / "outputs" / "out.py"
 
 
 def read_config(path):
