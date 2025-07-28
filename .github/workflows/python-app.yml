@@ -54,27 +54,27 @@ jobs:
           fi
 
           pyinstaller modules/main.py \
-            --name server \
-            --onefile \
-            --hidden-import=fastapi \
-            --hidden-import=fastapi.middleware.cors \
-            --hidden-import=fastapi.middleware.httpsredirect \
-            --hidden-import=fastapi.middleware.trustedhost \
-            --hidden-import=uvicorn \
-            --hidden-import=uvicorn.logging \
-            --hidden-import=uvicorn.loops.auto \
-            --hidden-import=uvicorn.protocols.http.auto \
-            --hidden-import=uvicorn.protocols.websockets.auto \
-            --hidden-import=uvicorn.lifespan.on \
-            --hidden-import=pydantic \
-            --hidden-import=configs.registries.optimizerreg \
-            --hidden-import=configs.registries.lossreg \
-            --hidden-import=configs.registries.metricreg \
-            --hidden-import=configs.registries.layerreg \
-            --hidden-import=configs.registries.modelreg \
-            --add-data "templates${SEP}templates" \
-            --add-data "modules${SEP}modules" \
-            --add-data "pyproject.toml${SEP}."
+          --name server \
+          --onefile \
+          --hidden-import=fastapi \
+          --hidden-import=fastapi.middleware.cors \
+          --hidden-import=fastapi.middleware.httpsredirect \
+          --hidden-import=fastapi.middleware.trustedhost \
+          --hidden-import=uvicorn \
+          --hidden-import=uvicorn.logging \
+          --hidden-import=uvicorn.loops.auto \
+          --hidden-import=uvicorn.protocols.http.auto \
+          --hidden-import=uvicorn.protocols.websockets.auto \
+          --hidden-import=uvicorn.lifespan.on \
+          --hidden-import=pydantic \
+          --hidden-import=configs.registries.optimizerreg \
+          --hidden-import=configs.registries.lossreg \
+          --hidden-import=configs.registries.metricreg \
+          --hidden-import=configs.registries.layerreg \
+          --hidden-import=configs.registries.modelreg \
+          --add-data "templates${SEP}templates" \
+          --add-data "modules${SEP}modules" \
+          --add-data "pyproject.toml${SEP}."
 
           mv "dist/server${EXT}" "dist/server-${TRIPLE}${EXT}"
 
