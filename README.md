@@ -19,6 +19,9 @@
 - run server `python modules/main.py`
 - check api at `http://127.0.0.1:8000/docs`
 
+- or
+- run the release `./main`
+
 ## TODO: Build into a cross platform binary
 
 - build one using pyinstaller, need to build on other OS ✔️
