@@ -31,6 +31,11 @@ jobs:
 
     - name: Install Python dependencies
       run: uv sync
+    - name: Install pipx
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install pipx
+        python3 -m pipx ensurepath
 
     - name: Install pyinstaller
       run: pipx install pyinstaller
