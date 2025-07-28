@@ -33,7 +33,9 @@ jobs:
       run: uv sync
 
     - name: Install pyinstaller
-      run: uv pip install pyinstaller
+      run: pipx install pyinstaller
+
+
 
     - name: Build executable with PyInstaller
       run: |
