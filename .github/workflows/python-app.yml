@@ -30,7 +30,7 @@ jobs:
         version: "0.8.3"
 
     - name: Install Python dependencies
-      run: uv sync --locked
+      run: uv sync
 
     - name: Install pyinstaller
       run: uv pip install pyinstaller
