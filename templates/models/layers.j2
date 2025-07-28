@@ -1,138 +1,155 @@
-{% if layer_type == 'Linear' %}
-    nn.Linear({{ in_features }}, {{ out_features }}, bias={{ bias | default(true) }})
-{% elif layer_type == 'Bilinear' %}
-    nn.Bilinear({{ in1_features }}, {{ in2_features }}, {{ out_features }}, bias={{ bias | default(true) }})
-{% elif layer_type == 'Conv1d' %}
+{% macro pyarg(val) -%}
+    {%- if val is string -%}
+        '{{ val }}'
+    {%- elif val is iterable and val is not string -%}
+        ({{ val | join(', ') }})
+    {%- else -%}
+        {{ val }}
+    {%- endif -%}
+{%- endmacro %}
+
+model = nn.Sequential(
+{%- for lyr in model.layers %}
+    {%- set t = lyr.type %}
+    {%- set p = lyr.params %}
+    {%- if t == 'Linear' %}
+    nn.Linear({{ pyarg(p.in_features) }}, {{ pyarg(p.out_features) }}, bias={{ p.bias | default(true) }})
+    {%- elif t == 'Bilinear' %}
+    nn.Bilinear({{ pyarg(p.in1_features) }}, {{ pyarg(p.in2_features) }}, {{ pyarg(p.out_features) }}, bias={{ p.bias | default(true) }})
+    {%- elif t == 'Conv1d' %}
     nn.Conv1d(
-        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
-        stride={{ stride | default(1) }}, padding={{ padding | default(0) }}, dilation={{ dilation | default(1) }},
-        groups={{ groups | default(1) }}, bias={{ bias | default(true) }}, padding_mode='{{ padding_mode | default("zeros") }}'
+        {{ pyarg(p.in_channels) }}, {{ pyarg(p.out_channels) }}, {{ pyarg(p.kernel_size) }},
+        stride={{ pyarg(p.stride | default(1)) }}, padding={{ pyarg(p.padding | default(0)) }}, dilation={{ pyarg(p.dilation | default(1)) }},
+        groups={{ pyarg(p.groups | default(1)) }}, bias={{ p.bias | default(true) }}, padding_mode='{{ p.padding_mode | default("zeros") }}'
     )
-{% elif layer_type == 'Conv2d' %}
+    {%- elif t == 'Conv2d' %}
     nn.Conv2d(
-        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
-        stride={{ stride }}, padding={{ padding | default(0) }}, dilation={{ dilation | default(1) }},
-        groups={{ groups | default(1) }}, bias={{ bias | default(true) }}, padding_mode='{{ padding_mode | default("zeros") }}'
+        {{ pyarg(p.in_channels) }}, {{ pyarg(p.out_channels) }}, {{ pyarg(p.kernel_size) }},
+        stride={{ pyarg(p.stride) }}, padding={{ pyarg(p.padding | default(0)) }}, dilation={{ pyarg(p.dilation | default(1)) }},
+        groups={{ pyarg(p.groups | default(1)) }}, bias={{ p.bias | default(true) }}, padding_mode='{{ p.padding_mode | default("zeros") }}'
     )
-{% elif layer_type == 'Conv3d' %}
+    {%- elif t == 'Conv3d' %}
     nn.Conv3d(
-        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
-        stride={{ stride | default(1) }}, padding={{ padding | default(0) }}, dilation={{ dilation | default(1) }},
-        groups={{ groups | default(1) }}, bias={{ bias | default(true) }}, padding_mode='{{ padding_mode | default("zeros") }}'
+        {{ pyarg(p.in_channels) }}, {{ pyarg(p.out_channels) }}, {{ pyarg(p.kernel_size) }},
+        stride={{ pyarg(p.stride | default(1)) }}, padding={{ pyarg(p.padding | default(0)) }}, dilation={{ pyarg(p.dilation | default(1)) }},
+        groups={{ pyarg(p.groups | default(1)) }}, bias={{ p.bias | default(true) }}, padding_mode='{{ p.padding_mode | default("zeros") }}'
     )
-{% elif layer_type == 'ConvTranspose1d' %}
+    {%- elif t == 'ConvTranspose1d' %}
     nn.ConvTranspose1d(
-        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
-        stride={{ stride | default(1) }}, padding={{ padding | default(0) }},
-        output_padding={{ output_padding | default(0) }}, bias={{ bias | default(true) }}
+        {{ pyarg(p.in_channels) }}, {{ pyarg(p.out_channels) }}, {{ pyarg(p.kernel_size) }},
+        stride={{ pyarg(p.stride | default(1)) }}, padding={{ pyarg(p.padding | default(0)) }},
+        output_padding={{ pyarg(p.output_padding | default(0)) }}, bias={{ p.bias | default(true) }}
     )
-{% elif layer_type == 'ConvTranspose2d' %}
+    {%- elif t == 'ConvTranspose2d' %}
     nn.ConvTranspose2d(
-        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
-        stride={{ stride | default(1) }}, padding={{ padding | default(0) }},
-        output_padding={{ output_padding | default(0) }}, bias={{ bias | default(true) }}
+        {{ pyarg(p.in_channels) }}, {{ pyarg(p.out_channels) }}, {{ pyarg(p.kernel_size) }},
+        stride={{ pyarg(p.stride | default(1)) }}, padding={{ pyarg(p.padding | default(0)) }},
+        output_padding={{ pyarg(p.output_padding | default(0)) }}, bias={{ p.bias | default(true) }}
     )
-{% elif layer_type == 'ConvTranspose3d' %}
+    {%- elif t == 'ConvTranspose3d' %}
     nn.ConvTranspose3d(
-        {{ in_channels }}, {{ out_channels }}, {{ kernel_size }},
-        stride={{ stride | default(1) }}, padding={{ padding | default(0) }},
-        output_padding={{ output_padding | default(0) }}, bias={{ bias | default(true) }}
+        {{ pyarg(p.in_channels) }}, {{ pyarg(p.out_channels) }}, {{ pyarg(p.kernel_size) }},
+        stride={{ pyarg(p.stride | default(1)) }}, padding={{ pyarg(p.padding | default(0)) }},
+        output_padding={{ pyarg(p.output_padding | default(0)) }}, bias={{ p.bias | default(true) }}
     )
-{% elif layer_type == 'MaxPool1d' %}
+    {%- elif t == 'MaxPool1d' %}
     nn.MaxPool1d(
-        {{ kernel_size }}, stride={{ stride | default(kernel_size) }},
-        padding={{ padding | default(0) }}, dilation={{ dilation | default(1) }}, ceil_mode={{ ceil_mode | default(false) }}
+        {{ pyarg(p.kernel_size) }}, stride={{ pyarg(p.stride | default(p.kernel_size)) }},
+        padding={{ pyarg(p.padding | default(0)) }}, dilation={{ pyarg(p.dilation | default(1)) }}, ceil_mode={{ p.ceil_mode | default(false) }}
     )
-{% elif layer_type == 'MaxPool2d' %}
+    {%- elif t == 'MaxPool2d' %}
     nn.MaxPool2d(
-        {{ kernel_size }}, stride={{ stride | default(kernel_size) }},
-        padding={{ padding | default(0) }}, dilation={{ dilation | default(1) }}, ceil_mode={{ ceil_mode | default(false) }}
+        {{ pyarg(p.kernel_size) }}, stride={{ pyarg(p.stride | default(p.kernel_size)) }},
+        padding={{ pyarg(p.padding | default(0)) }}, dilation={{ pyarg(p.dilation | default(1)) }}, ceil_mode={{ p.ceil_mode | default(false) }}
     )
-{% elif layer_type == 'MaxPool3d' %}
+    {%- elif t == 'MaxPool3d' %}
     nn.MaxPool3d(
-        {{ kernel_size }}, stride={{ stride | default(kernel_size) }},
-        padding={{ padding | default(0) }}, dilation={{ dilation | default(1) }}, ceil_mode={{ ceil_mode | default(false) }}
+        {{ pyarg(p.kernel_size) }}, stride={{ pyarg(p.stride | default(p.kernel_size)) }},
+        padding={{ pyarg(p.padding | default(0)) }}, dilation={{ pyarg(p.dilation | default(1)) }}, ceil_mode={{ p.ceil_mode | default(false) }}
     )
-{% elif layer_type == 'AvgPool1d' %}
+    {%- elif t == 'AvgPool1d' %}
     nn.AvgPool1d(
-        {{ kernel_size }}, stride={{ stride | default(kernel_size) }},
-        padding={{ padding | default(0) }}, ceil_mode={{ ceil_mode | default(false) }},
-        count_include_pad={{ count_include_pad | default(true) }}
+        {{ pyarg(p.kernel_size) }}, stride={{ pyarg(p.stride | default(p.kernel_size)) }},
+        padding={{ pyarg(p.padding | default(0)) }}, ceil_mode={{ p.ceil_mode | default(false) }},
+        count_include_pad={{ p.count_include_pad | default(true) }}
     )
-{% elif layer_type == 'AvgPool2d' %}
+    {%- elif t == 'AvgPool2d' %}
     nn.AvgPool2d(
-        {{ kernel_size }}, stride={{ stride | default(kernel_size) }},
-        padding={{ padding | default(0) }}, ceil_mode={{ ceil_mode | default(false) }},
-        count_include_pad={{ count_include_pad | default(true) }}
+        {{ pyarg(p.kernel_size) }}, stride={{ pyarg(p.stride | default(p.kernel_size)) }},
+        padding={{ pyarg(p.padding | default(0)) }}, ceil_mode={{ p.ceil_mode | default(false) }},
+        count_include_pad={{ p.count_include_pad | default(true) }}
     )
-{% elif layer_type == 'AvgPool3d' %}
+    {%- elif t == 'AvgPool3d' %}
     nn.AvgPool3d(
-        {{ kernel_size }}, stride={{ stride | default(kernel_size) }},
-        padding={{ padding | default(0) }}, ceil_mode={{ ceil_mode | default(false) }},
-        count_include_pad={{ count_include_pad | default(true) }}
+        {{ pyarg(p.kernel_size) }}, stride={{ pyarg(p.stride | default(p.kernel_size)) }},
+        padding={{ pyarg(p.padding | default(0)) }}, ceil_mode={{ p.ceil_mode | default(false) }},
+        count_include_pad={{ p.count_include_pad | default(true) }}
     )
-{% elif layer_type == 'BatchNorm1d' %}
+    {%- elif t == 'BatchNorm1d' %}
     nn.BatchNorm1d(
-        {{ num_features }}, eps={{ eps | default(1e-5) }}, momentum={{ momentum | default(0.1) }},
-        affine={{ affine | default(true) }}, track_running_stats={{ track_running_stats | default(true) }}
+        {{ pyarg(p.num_features) }}, eps={{ p.eps | default(1e-5) }}, momentum={{ p.momentum | default(0.1) }},
+        affine={{ p.affine | default(true) }}, track_running_stats={{ p.track_running_stats | default(true) }}
     )
-{% elif layer_type == 'BatchNorm2d' %}
+    {%- elif t == 'BatchNorm2d' %}
     nn.BatchNorm2d(
-        {{ num_features }}, eps={{ eps | default(1e-5) }}, momentum={{ momentum | default(0.1) }},
-        affine={{ affine | default(true) }}, track_running_stats={{ track_running_stats | default(true) }}
+        {{ pyarg(p.num_features) }}, eps={{ p.eps | default(1e-5) }}, momentum={{ p.momentum | default(0.1) }},
+        affine={{ p.affine | default(true) }}, track_running_stats={{ p.track_running_stats | default(true) }}
     )
-{% elif layer_type == 'BatchNorm3d' %}
+    {%- elif t == 'BatchNorm3d' %}
     nn.BatchNorm3d(
-        {{ num_features }}, eps={{ eps | default(1e-5) }}, momentum={{ momentum | default(0.1) }},
-        affine={{ affine | default(true) }}, track_running_stats={{ track_running_stats | default(true) }}
+        {{ pyarg(p.num_features) }}, eps={{ p.eps | default(1e-5) }}, momentum={{ p.momentum | default(0.1) }},
+        affine={{ p.affine | default(true) }}, track_running_stats={{ p.track_running_stats | default(true) }}
     )
-{% elif layer_type == 'LayerNorm' %}
+    {%- elif t == 'LayerNorm' %}
     nn.LayerNorm(
-        {{ normalized_shape }}, eps={{ eps | default(1e-5) }}, elementwise_affine={{ elementwise_affine | default(true) }}
+        {{ pyarg(p.normalized_shape) }}, eps={{ p.eps | default(1e-5) }}, elementwise_affine={{ p.elementwise_affine | default(true) }}
     )
-{% elif layer_type == 'Transformer' %}
+    {%- elif t == 'Transformer' %}
     nn.Transformer(
-        d_model={{ d_model | default(512) }}, nhead={{ nhead | default(8) }},
-        num_encoder_layers={{ num_encoder_layers | default(6) }},
-        num_decoder_layers={{ num_decoder_layers | default(6) }},
-        dim_feedforward={{ dim_feedforward | default(2048) }}, dropout={{ dropout | default(0.1) }},
-        activation='{{ activation | default("relu") }}'
+        d_model={{ p.d_model | default(512) }}, nhead={{ p.nhead | default(8) }},
+        num_encoder_layers={{ p.num_encoder_layers | default(6) }},
+        num_decoder_layers={{ p.num_decoder_layers | default(6) }},
+        dim_feedforward={{ p.dim_feedforward | default(2048) }}, dropout={{ p.dropout | default(0.1) }},
+        activation='{{ p.activation | default("relu") }}'
     )
-{% elif layer_type == 'MultiheadAttention' %}
+    {%- elif t == 'MultiheadAttention' %}
     nn.MultiheadAttention(
-        {{ embed_dim }}, {{ num_heads }},
-        dropout={{ dropout | default(0.0) }}, bias={{ bias | default(true) }}, add_bias_kv={{ add_bias_kv | default(false) }}
+        {{ pyarg(p.embed_dim) }}, {{ pyarg(p.num_heads) }},
+        dropout={{ p.dropout | default(0.0) }}, bias={{ p.bias | default(true) }}, add_bias_kv={{ p.add_bias_kv | default(false) }}
     )
-{% elif layer_type == 'Dropout' %}
-    nn.Dropout(p={{ p | default(0.5) }}, inplace={{ inplace | default(false) }})
-{% elif layer_type == 'Dropout1d' %}
-    nn.Dropout1d(p={{ p | default(0.5) }}, inplace={{ inplace | default(false) }})
-{% elif layer_type == 'Dropout2d' %}
-    nn.Dropout2d(p={{ p | default(0.5) }}, inplace={{ inplace | default(false) }})
-{% elif layer_type == 'Dropout3d' %}
-    nn.Dropout3d(p={{ p | default(0.5) }}, inplace={{ inplace | default(false) }})
-{% elif layer_type == 'Embedding' %}
+    {%- elif t == 'Dropout' %}
+    nn.Dropout(p={{ p.p | default(0.5) }}, inplace={{ p.inplace | default(false) }})
+    {%- elif t == 'Dropout1d' %}
+    nn.Dropout1d(p={{ p.p | default(0.5) }}, inplace={{ p.inplace | default(false) }})
+    {%- elif t == 'Dropout2d' %}
+    nn.Dropout2d(p={{ p.p | default(0.5) }}, inplace={{ p.inplace | default(false) }})
+    {%- elif t == 'Dropout3d' %}
+    nn.Dropout3d(p={{ p.p | default(0.5) }}, inplace={{ p.inplace | default(false) }})
+    {%- elif t == 'Embedding' %}
     nn.Embedding(
-        {{ num_embeddings }}, {{ embedding_dim }},
-        padding_idx={{ padding_idx | default('None') }}, max_norm={{ max_norm | default('None') }}, sparse={{ sparse | default(false) }}
+        {{ pyarg(p.num_embeddings) }}, {{ pyarg(p.embedding_dim) }},
+        padding_idx={{ p.padding_idx | default('None') }}, max_norm={{ p.max_norm | default('None') }}, sparse={{ p.sparse | default(false) }}
     )
-{% elif layer_type == 'PixelShuffle' %}
-    nn.PixelShuffle(upscale_factor={{ upscale_factor }})
-{% elif layer_type == 'Upsample' %}
-    nn.Upsample(size={{ size }}, scale_factor={{ scale_factor | default('None') }}, mode='{{ mode | default("nearest") }}')
-{% elif layer_type == 'LSTM' %}
+    {%- elif t == 'PixelShuffle' %}
+    nn.PixelShuffle(upscale_factor={{ pyarg(p.upscale_factor) }})
+    {%- elif t == 'Upsample' %}
+    nn.Upsample(size={{ pyarg(p.size) }}, scale_factor={{ p.scale_factor | default('None') }}, mode='{{ p.mode | default("nearest") }}')
+    {%- elif t == 'LSTM' %}
     nn.LSTM(
-        input_size={{ input_size }}, hidden_size={{ hidden_size }},
-        num_layers={{ num_layers | default(1) }}, batch_first={{ batch_first | default(false) }},
-        bidirectional={{ bidirectional | default(false) }}
+        input_size={{ pyarg(p.input_size) }}, hidden_size={{ pyarg(p.hidden_size) }},
+        num_layers={{ pyarg(p.num_layers | default(1)) }}, batch_first={{ p.batch_first | default(false) }},
+        bidirectional={{ p.bidirectional | default(false) }}
     )
-{% elif layer_type == 'Flatten' %}
-    nn.Flatten(start_dim={{ start_dim | default(1) }}, end_dim={{ end_dim | default(-1) }})
-{% elif layer_type == 'Unfold' %}
+    {%- elif t == 'Flatten' %}
+    nn.Flatten(start_dim={{ p.start_dim | default(1) }}, end_dim={{ p.end_dim | default(-1) }})
+    {%- elif t == 'Unfold' %}
     nn.Unfold(
-        kernel_size={{ kernel_size }}, stride={{ stride | default(1) }},
-        padding={{ padding | default(0) }}, dilation={{ dilation | default(1) }}
+        kernel_size={{ pyarg(p.kernel_size) }}, stride={{ pyarg(p.stride | default(1)) }},
+        padding={{ pyarg(p.padding | default(0)) }}, dilation={{ pyarg(p.dilation | default(1)) }}
     )
-{% else %}
-print("Unsupported model type: {{ model_type }}")
-{% endif %}
+    {%- else %}
+    # Unsupported layer: {{ t }} (Params: {{ p }})
+    {%- endif %}
+    {%- if not loop.last %},{% endif %}
+{%- endfor %}
+)

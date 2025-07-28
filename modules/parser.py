@@ -92,12 +92,15 @@ def normalize_names(cfg: dict):
         loss["name"] = auto_resolve_name("losses", loss["name"])
     for metric in training.get("metrics", []):
         metric["name"] = auto_resolve_name("metrics", metric["name"])
+    
     model_cfg = cfg.get("model", {})
-    if pretrained := model_cfg.get("pretrained", {}):
-        pretrained["name"] = auto_resolve_name("models", pretrained["name"])
+    if model_cfg.get("use_pretrained", False):
+        if pretrained := model_cfg.get("pretrained", {}):
+            pretrained["name"] = auto_resolve_name("models", pretrained["name"])
     elif layers := model_cfg.get("layers", []):
         for layer in layers:
             layer["type"] = auto_resolve_name("layers", layer["type"])
+
 
 
 def resolve_template(section, cfg):
@@ -123,6 +126,8 @@ def render_template(path, context):
         template = env.get_template(path)
         return template.render(
             config=context,
+            model=context.get("model", {}),
+            layers=context.get("model", {}).get("layers", []),
             METRIC_REGISTRY=metricreg.METRIC_REGISTRY,
             OPTIMIZER_REGISTRY=optimizerreg.OPTIMIZER_REGISTRY,
             LOSS_REGISTRY=lossreg.LOSS_REGISTRY,
