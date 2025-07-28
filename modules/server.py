@@ -1,3 +1,4 @@
+import uuid
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.responses import RedirectResponse
@@ -194,10 +195,10 @@ async def generate(payload: GeneratePayload):
             cwd=base_path,
         )
         
-        print("Subprocess STDOUT:")
-        print(result.stdout)
-        print("Subprocess STDERR:")
-        print(result.stderr)
+        # print("Subprocess STDOUT:")
+        # print(result.stdout)
+        # print("Subprocess STDERR:")
+        # print(result.stderr)
 
         if result.returncode != 0:
             return JSONResponse(status_code=500, content={"error": result.stderr.strip()})
@@ -210,7 +211,7 @@ async def generate(payload: GeneratePayload):
         except json.JSONDecodeError as e:
             print(f"Failed to parse output: {result.stdout.strip()}")
             return JSONResponse(status_code=500, content={"error": f"Failed to parse output: {str(e)}"})
-
+        
         generated_path = Path(parser_output["generated_path"])
 
         if not generated_path.exists():
@@ -231,7 +232,7 @@ async def generate(payload: GeneratePayload):
 
 class RunPayload(BaseModel):
     base_path: Optional[str] | None = None  #defaults to current directory
-
+    generated_code = Field(..., description="code to run")
 @app.post("/run")
 async def run(payload: RunPayload):
     base_path = Path(payload.base_path) if payload.base_path and payload.base_path.lower() != "string" else DEFAULT_BASE_PATH
@@ -240,11 +241,9 @@ async def run(payload: RunPayload):
     if not outputs_path.is_dir():
         return JSONResponse(status_code=500, content={"error": f"Outputs directory '{outputs_path}' not found."})
 
-    generated_files = sorted(outputs_path.glob("out*.py"), key=os.path.getmtime)
-    if not generated_files:
-        return JSONResponse(status_code=500, content={"error": "No generated outputs found."})
+    temp_code_path = outputs_path / f"temp_{uuid.uuid4().hex}.py"
+    temp_code_path.write_text(payload.generated_code)
 
-    generated_path = generated_files[-1]
     result_json_path = outputs_path / "results.json"
 
     venv_path = outputs_path / ".venv"
@@ -253,21 +252,20 @@ async def run(payload: RunPayload):
     python_exec = venv_path / "bin" / "python"
 
     try:
-        # setup virtual environment
         try:
             subprocess_run([pip, "install", "uv"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
         except Exception:
             subprocess_run(["brew", "install", "uv"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
         except Exception:
             raise RuntimeError("Failed to install uv. install pip or brew first.")
-        
+
         try:
             subprocess_run([uv, "sync"], cwd=outputs_path, stderr=PIPE, stdout=PIPE, check=True)
         except Exception:
             raise RuntimeError("Failed to sync uv environment. Make sure uv is installed correctly.")
-        
+
         exec_result = subprocess_run(
-            [python_exec, str(generated_path)],
+            [python_exec, str(temp_code_path)],
             stdout=PIPE,
             stderr=PIPE,
             cwd=outputs_path,
@@ -279,11 +277,14 @@ async def run(payload: RunPayload):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": f"Execution failed: {str(e)}"})
 
+    finally:
+        if temp_code_path.is_file():
+            temp_code_path.unlink()  
+
     if not result_json_path.is_file():
         return JSONResponse(status_code=500, content={"error": "results.json not found"})
 
     results = json.loads(result_json_path.read_text())
-
     return JSONResponse(content=results)
 
 

@@ -175,7 +175,7 @@ def write_output(code: str, output_path: Path):
         debug_log(f"Black formatting error: {e}")
         raise
     output_path.write_text(code)
-    print(json.dumps({"generated_path": str(output_path.resolve())}))
+    # print(json.dumps({"generated_path": str(output_path.resolve())}))
 
 
 def get_output_path(user_path: str = None) -> Path:
@@ -201,6 +201,8 @@ def main():
     cfg = read_config(args.config)
     code = assemble(cfg)
     out_path = get_output_path(args.output)
+
+    # TODO: change this to use the UI code instead of saving to a file
     write_output(code, out_path)
 
 
