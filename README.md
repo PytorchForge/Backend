@@ -6,7 +6,7 @@
   - model definition
   - training configuration
 - communicate with UI using FastAPI
-  - receive config
+  - receive config✔️
   - send back generated code
   - send training command, inference results
 - run training or inference scripts and return result to UI
@@ -21,8 +21,8 @@
 
 ## TODO: Build into a cross platform binary
 
-- build one using pyinstaller, need to build on other OS
-- Need to bundle witht The UI using tauri  side-car
+- build one using pyinstaller, need to build on other OS ✔️
+- Need to bundle witht The UI using tauri  side-car 
 
 ## TODO: Pending functionalities
 
