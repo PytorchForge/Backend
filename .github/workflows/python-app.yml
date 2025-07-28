@@ -6,6 +6,7 @@ on:
   release:
     types: [created]
   workflow_dispatch:
+
 jobs:
   build:
     strategy:
@@ -14,75 +15,88 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: "3.11"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v6
-      with:
-        version: "0.8.3"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.3"
 
-    - name: Install dependencies
-      run: uv sync
+      - name: Install dependencies
+        run: uv sync
 
-    - name: Install pipx + PyInstaller
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install pipx
-        python -m pipx ensurepath
-        pipx install pyinstaller
+      - name: Install pipx + PyInstaller
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pipx
+          python -m pipx ensurepath
+          pipx install pyinstaller
 
-    - name: Build binary
-      shell: bash
-      run: |
-        SEP=":"
-        if [[ "${{ runner.os }}" == "Windows" ]]; then SEP=";"; fi
+      - name: Get Rust target triple
+        shell: bash
+        run: |
+          TRIPLE=$(rustc -vV | grep host | cut -f2 -d' ')
+          echo "TRIPLE=$TRIPLE" >> $GITHUB_ENV
 
-        pyinstaller modules/main.py \
-          --name main \
-          --onefile \
-          --hidden-import=fastapi \
-          --hidden-import=fastapi.middleware.cors \
-          --hidden-import=fastapi.middleware.httpsredirect \
-          --hidden-import=fastapi.middleware.trustedhost \
-          --hidden-import=uvicorn \
-          --hidden-import=uvicorn.logging \
-          --hidden-import=uvicorn.loops.auto \
-          --hidden-import=uvicorn.protocols.http.auto \
-          --hidden-import=uvicorn.protocols.websockets.auto \
-          --hidden-import=uvicorn.lifespan.on \
-          --hidden-import=pydantic \
-          --hidden-import=configs.registries.optimizerreg \
-          --hidden-import=configs.registries.lossreg \
-          --hidden-import=configs.registries.metricreg \
-          --hidden-import=configs.registries.layerreg \
-          --hidden-import=configs.registries.modelreg \
-          --add-data "templates${SEP}templates" \
-          --add-data "modules${SEP}modules" \
-          --add-data "pyproject.toml${SEP}."
+      - name: Build binary with PyInstaller
+        shell: bash
+        run: |
+          SEP=":"
+          EXT=""
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            SEP=";"
+            EXT=".exe"
+          fi
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: main-${{ runner.os }}
-        path: dist/main*
-        
+          pyinstaller modules/main.py \
+            --name server \
+            --onefile \
+            --hidden-import=fastapi \
+            --hidden-import=fastapi.middleware.cors \
+            --hidden-import=fastapi.middleware.httpsredirect \
+            --hidden-import=fastapi.middleware.trustedhost \
+            --hidden-import=uvicorn \
+            --hidden-import=uvicorn.logging \
+            --hidden-import=uvicorn.loops.auto \
+            --hidden-import=uvicorn.protocols.http.auto \
+            --hidden-import=uvicorn.protocols.websockets.auto \
+            --hidden-import=uvicorn.lifespan.on \
+            --hidden-import=pydantic \
+            --hidden-import=configs.registries.optimizerreg \
+            --hidden-import=configs.registries.lossreg \
+            --hidden-import=configs.registries.metricreg \
+            --hidden-import=configs.registries.layerreg \
+            --hidden-import=configs.registries.modelreg \
+            --add-data "templates${SEP}templates" \
+            --add-data "modules${SEP}modules" \
+            --add-data "pyproject.toml${SEP}."
+
+          mv "dist/server${EXT}" "dist/server-${TRIPLE}${EXT}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ env.TRIPLE }}
+          path: dist/server-${{ env.TRIPLE }}*
+
   release-upload:
     needs: build
     runs-on: ubuntu-latest
-    steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: ./artifacts
-        merge-multiple: true
 
-    - name: Upload to GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ github.ref_name }}
-        files: ./artifacts/main*
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+          merge-multiple: true
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: ./artifacts/server-*
