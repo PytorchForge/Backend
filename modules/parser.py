@@ -19,6 +19,7 @@ if getattr(sys, 'frozen', False):
     BASE_DIR = Path(sys._MEIPASS)
 else:
     BASE_DIR = Path(__file__).resolve().parent.parent
+print(f"Base directory in paerser is: {BASE_DIR}", file=sys.stderr)
 
 sys.path.insert(0, str(BASE_DIR / "modules"))
 sys.path.insert(0, str(BASE_DIR / "templates"))
@@ -204,6 +205,7 @@ def main():
 
     # TODO: change this to use the UI code instead of saving to a file
     write_output(code, out_path)
+    print(json.dumps({"generated_path": str(out_path.resolve())}))  # required for writing
 
 
 if __name__ == "__main__":

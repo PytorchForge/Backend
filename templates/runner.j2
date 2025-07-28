@@ -11,12 +11,7 @@ def main():
     train_loader = custom_loader(root=root, batch_size=batch_size, split="train")
     val_loader = custom_loader(root=root, batch_size=batch_size, split="val")
 
-    {% if config.model.use_pretrained %}
-    model = models.{{ config.model.pretrained.name }}(pretrained=True)
-    {% else %}
-    model = CustomModel(config)
-    {% endif %}
-    model.to(device)
+   
     
     epochs = config["training"]["epochs"]
 

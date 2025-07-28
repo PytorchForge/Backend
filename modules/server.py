@@ -2,7 +2,7 @@ import uuid
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 from subprocess import run as subprocess_run, PIPE
 from pathlib import Path
 import tempfile
@@ -174,7 +174,7 @@ def update_pyproject_toml(pyproject_path: Path, packages: set):
 @app.post("/generate")
 async def generate(payload: GeneratePayload):
     base_path = Path(payload.base_path) if payload.base_path else DEFAULT_BASE_PATH
-    parser_path = (BASE_DIR / "modules" / "parser.py").resolve()
+    parser_path = (BASE_DIR / "parser.py").resolve()
 
 
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
@@ -195,10 +195,10 @@ async def generate(payload: GeneratePayload):
             cwd=base_path,
         )
         
-        # print("Subprocess STDOUT:")
-        # print(result.stdout)
-        # print("Subprocess STDERR:")
-        # print(result.stderr)
+        print("Subprocess STDOUT:")
+        print(result.stdout)
+        print("Subprocess STDERR:")
+        print(result.stderr)
 
         if result.returncode != 0:
             return JSONResponse(status_code=500, content={"error": result.stderr.strip()})
