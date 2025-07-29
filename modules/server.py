@@ -46,6 +46,9 @@ print(f"Default base path set to: {DEFAULT_BASE_PATH}")
 async def root():
     return RedirectResponse(url="/docs",status_code=308)
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 
 class DataSource(BaseModel):
     type: Literal["file", "folder"]
