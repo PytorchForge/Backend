@@ -46,6 +46,9 @@ print(f"Default base path set to: {DEFAULT_BASE_PATH}")
 async def root():
     return RedirectResponse(url="/docs",status_code=308)
 
+@app.get("/health", include_in_schema=False)
+async def health_check():
+    return JSONResponse(status_code=200, content={"status": "ok", "message": "Server is running"})
 
 class DataSource(BaseModel):
     type: Literal["file", "folder"]
@@ -174,7 +177,7 @@ def update_pyproject_toml(pyproject_path: Path, packages: set):
 @app.post("/generate")
 async def generate(payload: GeneratePayload):
     base_path = Path(payload.base_path) if payload.base_path else DEFAULT_BASE_PATH
-    parser_path = (BASE_DIR / "parser.py").resolve()
+    parser_path = (BASE_DIR /"modules" /"parser.py").resolve()
 
 
     with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as temp_config:
