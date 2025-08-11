@@ -1,3 +1,7 @@
+import os
+if 'PYTHONHOME' in os.environ:
+   del os.environ['PYTHONHOME']
+
 import argparse
 import uvicorn
 import sys

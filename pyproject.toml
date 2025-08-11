@@ -26,6 +26,7 @@ dependencies = [
     "pyinstaller",
     "flake8>=7.3.0",
     "pytest>=8.4.1",
+    "pyoxidizer>=0.24.0",
 ]
 
 [tool.uv.sources]
